@@ -1,4 +1,4 @@
-import { Reclaim } from "@reclaimprotocol/js-sdk";
+import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { processHackerRankData } from "./hackerrank/service";
 import { processSuperteamEarnData } from "./superteamearn/service";
 import { processLeetcodeData } from "./leetcode/service";
@@ -6,45 +6,38 @@ import { processGeeksForGeeksData } from "./geeksforgeeks/service";
 import { processCodechefData } from "./codechef/service";
 import { logToDiscord } from "@/utils/logger";
 
-const reclaimAppID = process.env.RECLAIM_APP_ID!;
-const reclaimAppSecret = process.env.RECLAIM_APP_SECRET!;
+const APP_ID = process.env.RECLAIM_APP_ID!;
+const APP_SECRET = process.env.RECLAIM_APP_SECRET!;
 
 export async function signWithProviderID(
   githubId: any,
   providerId: string,
   providerName: string
 ) {
-  const reclaimClient = new Reclaim.ProofRequest(reclaimAppID);
-  await reclaimClient.buildProofRequest(providerId, true, "V2Linking");
+  const reclaimProofRequest = await ReclaimProofRequest.init(APP_ID, APP_SECRET, providerId);
 
-  await reclaimClient.setRedirectUrl("https://octasol.io/connect");
+  reclaimProofRequest.setRedirectUrl("https://octasol.io/connect");
+  const requestUrl = await reclaimProofRequest.getRequestUrl();
 
-  reclaimClient.setSignature(
-    await reclaimClient.generateSignature(reclaimAppSecret)
-  );
+  await handleReclaimSession(githubId, reclaimProofRequest, providerName);
 
-  const { requestUrl: signedUrl } =
-    await reclaimClient.createVerificationRequest();
-
-  await handleReclaimSession(githubId, reclaimClient, providerName);
-  return signedUrl;
+  return requestUrl;
 }
 
 async function handleReclaimSession(
   githubId: any,
-  reclaimClient: any,
+  reclaimProofRequest: any,
   providerName: string
 ) {
-  reclaimClient.startSession({
-    onSuccessCallback: async (proof: any) => {
+  await reclaimProofRequest.startSession({
+    onSuccess: async (proofs: any) => {
       try {
         let processedData;
-
         switch (providerName) {
           case "Hackerrank":
             processedData = await processHackerRankData(
               githubId,
-              proof,
+              proofs,
               providerName
             );
             break;
@@ -52,7 +45,7 @@ async function handleReclaimSession(
           case "SuperteamEarn":
             processedData = await processSuperteamEarnData(
               githubId,
-              proof,
+              proofs,
               providerName
             );
             break;
@@ -60,7 +53,7 @@ async function handleReclaimSession(
           case "Leetcode":
             processedData = await processLeetcodeData(
               githubId,
-              proof,
+              proofs,
               providerName
             );
             break;
@@ -68,7 +61,7 @@ async function handleReclaimSession(
           case "Geeksforgeeks":
             processedData = await processGeeksForGeeksData(
               githubId,
-              proof,
+              proofs,
               providerName
             );
             break;
@@ -76,7 +69,7 @@ async function handleReclaimSession(
           case "Codechef":
             processedData = await processCodechefData(
               githubId,
-              proof,
+              proofs,
               providerName
             );
             break;
@@ -93,7 +86,7 @@ async function handleReclaimSession(
         );
       }
     },
-    onFailureCallback: (error: any) => {
+    onError: (error: any) => {
       console.error(`Verification failed for githubId: ${githubId}`, error);
     },
   });
