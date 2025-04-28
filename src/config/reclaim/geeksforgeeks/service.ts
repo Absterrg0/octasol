@@ -1,24 +1,47 @@
 import { setGFGDatabyGithubId, setUsername } from "@/utils/dbUtils";
+import { logToDiscord } from "@/utils/logger";
 
 export async function processGeeksForGeeksData(
-  githubId: string,
-  proof: any,
+  githubId: any,
+  proofs: any,
   providerName: string
 ) {
-  const score = parseInt(JSON.parse(proof[0].claimData.context).extractedParameters
-    .score);
+  try {
+    let username, score, problemsSolved;
 
-  const problemsSolved = parseInt(JSON.parse(proof[0].claimData.context)
-    .extractedParameters.total_problems_solved);
+    // Handle different proof structures
+    if (Array.isArray(proofs)) {
+      const contextData = JSON.parse(proofs[0]?.claimData?.context || '{}');
+      username = contextData.extractedParameters?.URL_PARAMS_1;
+      score = parseInt(contextData.extractedParameters?.score);
+      problemsSolved = parseInt(contextData.extractedParameters?.total_problems_solved);
+    } else if (proofs.claimData && proofs.claimData.context) {
+      const contextData = JSON.parse(proofs.claimData.context);
+      username = contextData.extractedParameters?.URL_PARAMS_1;
+      score = parseInt(contextData.extractedParameters?.score);
+      problemsSolved = parseInt(contextData.extractedParameters?.total_problems_solved);
+    } else {
+      const extractedParams = proofs?.extractedParameters ||
+        JSON.parse(proofs?.context || '{}')?.extractedParameters;
+      username = extractedParams?.URL_PARAMS_1;
+      score = parseInt(extractedParams?.score);
+      problemsSolved = parseInt(extractedParams?.total_problems_solved);
+    }
 
-  const username = JSON.parse(proof[0].claimData.context).extractedParameters
-    .URL_PARAMS_1;
+    if (!username) {
+      throw new Error("Could not extract username from proof");
+    }
 
-  const lastUpdateTimeStamp = proof[0].claimData.timestampS;
+    await setUsername(BigInt(githubId), {
+      gfgUsername: username,
+    });
 
-  await setUsername(BigInt(githubId), {
-    gfgUsername: username,
-  });
-  await setGFGDatabyGithubId(BigInt(githubId), score, problemsSolved);
-  return true;
+    await setGFGDatabyGithubId(BigInt(githubId), score, problemsSolved);
+
+    return true;
+  } catch (error) {
+    await logToDiscord(`processGeeksForGeeksData: ${(error as any).message}`, "ERROR");
+    console.error("Error processing GeeksForGeeks proof:", error);
+    return false;
+  }
 }
