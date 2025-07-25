@@ -33,9 +33,13 @@ export async function GET(req: NextRequest) {
       }
     );
 
+
+
     return NextResponse.json({ repositories: reposResponse.data.repositories });
   } catch (error) {
     await logToDiscord(`github-repos: ${(error as any).message}`, "ERROR");
+
+    console.log(error);
 
     return NextResponse.json(
       { error: (error as any).message },

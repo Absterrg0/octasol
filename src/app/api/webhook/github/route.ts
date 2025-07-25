@@ -49,44 +49,6 @@ interface GitHubWebhookEvent {
   };
 }
 
-/**
- * Verify GitHub webhook signature
- * @param payload Raw request body
- * @param signature Signature from GitHub headers
- * @returns Boolean indicating if signature is valid
- */
-function verifyGitHubSignature(payload: string, signature: string): boolean {
-  const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
-  
-  if (!webhookSecret) {
-    console.error("GITHUB_WEBHOOK_SECRET is not configured");
-    return false;
-  }
-
-  if (!signature) {
-    console.error("No signature provided in webhook");
-    return false;
-  }
-
-  // Remove 'sha256=' prefix if present
-  const cleanSignature = signature.replace(/^sha256=/, '');
-  
-  // Calculate expected signature
-  const expectedSignature = createHmac('sha256', webhookSecret)
-    .update(payload, 'utf8')
-    .digest('hex');
-
-  // Use timing-safe comparison to prevent timing attacks
-  try {
-    return timingSafeEqual(
-      Buffer.from(cleanSignature, 'hex'),
-      Buffer.from(expectedSignature, 'hex')
-    );
-  } catch (error) {
-    console.error("Error comparing signatures:", error);
-    return false;
-  }
-}
 
 /**
  * Get installation information from webhook payload
@@ -260,29 +222,13 @@ async function handlePushEvent(event: any) {
 export async function POST(req: NextRequest) {
   try {
     // Get headers
-    const signature = req.headers.get('x-hub-signature-256');
     const eventType = req.headers.get('x-github-event');
     const deliveryId = req.headers.get('x-github-delivery');
 
-    // Get raw body for signature verification
-    const body = await req.text();
-    
-    // Verify signature
-    if (!verifyGitHubSignature(body, signature || '')) {
-      await logToDiscord(
-        `❌ **Webhook Signature Verification Failed**\nEvent: ${eventType}\nDelivery ID: ${deliveryId}`,
-        "ERROR"
-      );
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
-    }
-
-    // Parse JSON payload
-    let event: GitHubWebhookEvent;
+    let event:GitHubWebhookEvent;    
     try {
-      event = JSON.parse(body);
+          event = await req.json();
+
     } catch (error) {
       await logToDiscord(
         `❌ **Invalid JSON payload**\nEvent: ${eventType}\nError: ${(error as Error).message}`,

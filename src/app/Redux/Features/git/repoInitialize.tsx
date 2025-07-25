@@ -13,6 +13,7 @@ interface Repository {
 
 const initialRepoState: Repository[] = [];
 const initialRepoDataState = {};
+const initialSelectedRepoState: Repository | null = null;
 
 export const repoSlice = createSlice({
   name: "repo",
@@ -34,7 +35,20 @@ export const repoData = createSlice({
   },
 });
 
+export const selectedRepoSlice = createSlice({
+  name: "selectedRepo",
+  initialState: initialSelectedRepoState,
+  reducers: {
+    setSelectedRepo: (state, action: PayloadAction<Repository | null>) => {
+      return action.payload as any;
+    },
+    clearSelectedRepo: () => null,
+  },
+});
+
 export const { setRepositories } = repoSlice.actions;
 export const { setRepoData } = repoData.actions;
+export const { setSelectedRepo, clearSelectedRepo } = selectedRepoSlice.actions;
 export const repoReducer = repoSlice.reducer;
 export const repoDataReducer = repoData.reducer;
+export const selectedRepoReducer = selectedRepoSlice.reducer;

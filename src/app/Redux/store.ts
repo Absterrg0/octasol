@@ -3,7 +3,7 @@ import {
   gitReducer,
   installationIdReducer,
 } from "./Features/git/githubInstallation";
-import { repoReducer } from "./Features/git/repoInitialize";
+import { repoReducer, selectedRepoReducer } from "./Features/git/repoInitialize";
 import { errorReducer } from "./Features/error/error";
 import { searchReducer } from "./Features/git/search";
 import userReducer from "./Features/user/userSlice";
@@ -12,6 +12,7 @@ import { profileReducer } from "./Features/profile/profileSlice";
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import { combineReducers } from "redux";
+import { issuesReducer } from "./Features/git/issues";
 
 const persistConfig = {
   key: "root",
@@ -27,8 +28,10 @@ const rootReducer = combineReducers({
   installationId: installationIdReducer,
   search: searchReducer,
   repoData: repoReducer,
+  selectedRepo: selectedRepoReducer,
   counter: counterReducer,
   profile: profileReducer,
+  issues: issuesReducer,
 });
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

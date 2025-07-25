@@ -4,26 +4,35 @@ import axios, { AxiosRequestConfig } from "axios";
 import { getInstallationId, setUser } from "@/utils/dbUtils";
 import { getCache, setCache } from "./cache";
 import { logToDiscord } from "@/utils/logger";
+import path from 'path';
 
 export function getToken() {
-  const basedir = process.cwd();
-  const privateKeyFile = process.env.GITHUB_PRIVATE_KEY_FILE_NAME;
-  var privateKeyPath;
-  if (process.platform == "win32") {
-    privateKeyPath = `${basedir}\\keys\\${privateKeyFile}`;
-  } else {
-    privateKeyPath = `${basedir}/keys/${privateKeyFile}`;
+  try {
+    const privateKeyFile = process.env.GITHUB_PRIVATE_KEY_FILE_NAME;
+    if (!privateKeyFile) {
+      throw new Error("GITHUB_PRIVATE_KEY_FILE_NAME is not set.");
+    }
+
+    // Use path.join to safely construct the path
+    const privateKeyPath = path.join(process.cwd(), 'keys', privateKeyFile);
+    const privateKey = readFileSync(privateKeyPath, "utf8");
+    const appId = process.env.GITHUB_APP_ID;
+
+    if (!appId) {
+        throw new Error("GITHUB_APP_ID is not set.");
+    }
+
+    const payload = { iss: appId };
+    const token = sign(payload, privateKey, {
+      algorithm: "RS256",
+      expiresIn: "9m",
+    });
+
+    return token;
+  } catch (error) {
+    console.error("Error generating JWT:", error);
+    throw error; // Or return null
   }
-  const privateKey = readFileSync(privateKeyPath as string);
-  const appId = process.env.GITHUB_APP_ID as string;
-
-  const payload = { iss: appId };
-  const token = sign(payload, privateKey, {
-    algorithm: "RS256",
-    expiresIn: "9m",
-  });
-
-  return token;
 }
 
 export async function getAccessToken(installationId: number) {
