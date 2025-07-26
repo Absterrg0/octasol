@@ -28,35 +28,9 @@ export async function POST(req: NextRequest) {
 
   const accessToken = await getAccessToken(installationId);
 
-  const reposResponse = await axios.get(
-    "https://api.github.com/installation/repositories",
-    {
-      headers: {
-        Authorization: `token ${accessToken}`,
-        Accept: "application/vnd.github.v3+json",
-      },
-    }
-  );
-
-  const repositories = reposResponse.data.repositories;
-
-  if (!repositories) {
-    return NextResponse.json(
-      { error: "No repositories found" },
-      { status: 404 }
-    );
-  }
-  const repo = repositories.find((repo: any) => repo.name === repoName);
-
-  if (!repo) {
-    return NextResponse.json(
-      { error: "Repository not found" },
-      { status: 404 }
-    );
-  }
 
   const issuesResponse = await axios.get(
-    `https://api.github.com/repos/${repo.full_name}/issues`,
+    `https://api.github.com/repos/${repoName}/issues`,
     {
       headers: {
         Authorization: `token ${accessToken}`,
@@ -64,5 +38,8 @@ export async function POST(req: NextRequest) {
       },
     }
   );
+
+
+  
   return NextResponse.json(issuesResponse.data || []);
 }

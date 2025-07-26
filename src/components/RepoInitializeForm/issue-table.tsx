@@ -22,21 +22,31 @@ import {
 } from "@/components/ui/pagination"
 import type { Issue } from "@/app/Redux/Features/git/issues"
 import { useState } from "react"
+import { BountyDialog } from "./BountyDialog"
+import React from "react"
 export const IssuesCard = ({ 
     selectedRepo, 
     issues, 
     onRefresh
   }: any) => {
     const [currentPage, setCurrentPage] = useState(1);
+    const [bountyDialogOpen, setBountyDialogOpen] = useState(false);
+    const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+    
     const totalIssues = issues.length;
     const totalPages = Math.ceil(totalIssues / ISSUES_PER_PAGE);
     const startIndex = (currentPage - 1) * ISSUES_PER_PAGE;
     const endIndex = startIndex + ISSUES_PER_PAGE;
     const currentIssues = issues.slice(startIndex, endIndex);
+    
     const handlePageChange = (page: number) => setCurrentPage(page);
     const handlePrevPage = () => setCurrentPage((prev: number) => Math.max(1, prev - 1));
     const handleNextPage = () => setCurrentPage((prev: number) => Math.min(totalPages, prev + 1));
-  
+    
+    const handleCreateBounty = (issue: Issue) => {
+      setSelectedIssue(issue);
+      setBountyDialogOpen(true);
+    }
     const formatDate = (dateString: string) =>
       new Date(dateString).toLocaleDateString("en-US", {
         year: "numeric",
@@ -44,12 +54,8 @@ export const IssuesCard = ({
         day: "numeric",
       })
   
-    const getStateColor = (state: string) =>
-      state === "open"
-        ? "text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/50"
-        : "text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-900/50"
-  
     return (
+    <>
       <Card>
         <CardHeader className="pb-4">
           <div className="flex justify-between items-start">
@@ -121,7 +127,7 @@ export const IssuesCard = ({
                           </div>
                         </TableCell>
                         <TableCell className="w-[110px] align-middle">
-                          <Badge variant="default" className={getStateColor(issue.state)}>
+                          <Badge variant="default" className="text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/50">
                             {issue.state}
                           </Badge>
                         </TableCell>
@@ -142,6 +148,7 @@ export const IssuesCard = ({
                         </TableCell>
                         <TableCell className="w-[120px] align-middle text-center">
                           <Button
+                            onClick={() => handleCreateBounty(issue)}
                             variant={'outline'}
                             size="sm"
                             className="px-3 py-1 h-8 rounded-md text-xs font-semibold   whitespace-nowrap"
@@ -237,5 +244,14 @@ export const IssuesCard = ({
           )}
         </CardContent>
       </Card>
-    )
+      
+      {/* Bounty Dialog */}
+      <BountyDialog
+        open={bountyDialogOpen}
+        onOpenChange={setBountyDialogOpen}
+        issue={selectedIssue}
+        selectedRepo={selectedRepo}
+      />
+    </>
+  )
   }

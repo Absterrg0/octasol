@@ -118,7 +118,7 @@ export default function RepoInitializeForm() {
   const fetchIssues = async (repo: Repository) => {
     if (!installationId) return
     try {
-      const response = await POST(getRepo, { repo: repo.name, installationId })
+      const response = await POST(getRepo, { repo: repo.full_name, installationId })
       dispatch(setIssues(response?.response?.data || []))
     } catch (error) {
       console.error("Failed to fetch issues:", error)

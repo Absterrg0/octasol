@@ -73,7 +73,7 @@ export default function RichTextEditor({ content, onChange }: any) {
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className="border p-2 rounded-md"
+        className="border p-2 rounded-md "
       >
         <EditorContent editor={editor} />
       </div>

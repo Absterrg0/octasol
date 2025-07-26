@@ -5,6 +5,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 export interface Issue {
   id: number
   number: number
+  body:string
   title: string
   state: string
   created_at: string
