@@ -104,6 +104,7 @@ export const authOptions: NextAuthOptions = {
           setTimeout(() => updateGithubProfile(session.accessToken), 0);
         }
       }
+      session.user.walletAddress = userDbData.walletAddress;
       session.user.isVerifiedEmail = userDbData.verifiedEmail;
       return session;
     },

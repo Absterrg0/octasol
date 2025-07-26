@@ -979,3 +979,38 @@ export const getSubmissionByIdAndUsername = async (
     return false;
   }
 };
+
+
+
+
+export const setWalletAddress = async (githubId: bigint, walletAddress: string | null) => {
+  try {
+    const user = await db.user.findUnique({
+      where: { githubId: githubId },
+    });
+    const existingUser = await db.user.findFirst({
+      where: {
+        walletAddress: walletAddress,
+        githubId: {
+          not: githubId,
+        },
+      },
+    });
+    if (existingUser) {
+      throw new Error("Wallet address is already linked to another user.");
+    }
+
+    if (user) {
+      await db.user.update({
+        where: { githubId: githubId },
+        data: { walletAddress: walletAddress },
+      });
+    }
+  } catch (error) {
+    await logToDiscord(
+      `dbUtils/setWalletAddress: ${(error as any).message}`,
+      "ERROR");
+    console.error(error);
+    return false;
+  }
+};

@@ -50,6 +50,7 @@ const Login = () => {
     id?: string | null;
     accessToken?: string | null;
     isVerifiedEmail?: boolean | true;
+    walletAddress?: string | null;
   }
   const sessionUser = useMemo(
     () => session?.user as SessionUser | null,
@@ -156,6 +157,7 @@ const Login = () => {
           accessToken: session?.accessToken || "",
           status: status,
           isVerifiedEmail: sessionUser?.isVerifiedEmail || false,
+          walletAddress: sessionUser?.walletAddress || "",
         })
       );
       if (pathname === "/") {

@@ -10,6 +10,7 @@ type UserState = {
   accessToken: string;
   isVerifiedEmail?: boolean;
   status?: string;
+  walletAddress?: string;
 };
 
 const initialState: UserState = {
@@ -19,6 +20,7 @@ const initialState: UserState = {
   githubId: "",
   login: "",
   accessToken: "",
+  walletAddress:"",
   isVerifiedEmail: true,
   status: "unauthenticated",
 };
@@ -34,6 +36,7 @@ export const userSlice = createSlice({
       state.githubId = action.payload.githubId;
       state.login = action.payload.login;
       state.accessToken = action.payload.accessToken;
+      state.walletAddress = action.payload.walletAddress;
       state.isVerifiedEmail = action.payload.isVerifiedEmail;
       state.status = action.payload.status;
     },

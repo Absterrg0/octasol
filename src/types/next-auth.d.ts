@@ -8,6 +8,7 @@ declare module "next-auth" {
       image?: string | null;
       githubUsername?: string | null;
       accessToken?: string | null;
+      walletAddress?: string | null;
     } & DefaultSession["user"];
   }
 }

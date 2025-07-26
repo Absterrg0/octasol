@@ -119,3 +119,28 @@ export interface Bounty {
   createdAt: Date | null;
   updatedAt: Date | null;
 }
+
+
+
+export interface WalletLinkingState {
+  status: 'idle' | 'connecting' | 'signing' | 'verifying' | 'linked' | 'error';
+  error: string | null;
+  isLoading: boolean;
+}
+
+export interface WalletLinkRequest {
+  publicKey: string;
+  githubId: string;
+}
+
+export interface WalletLinkResponse {
+  message: string;
+  timestamp: number;
+}
+
+export interface WalletVerificationRequest {
+  publicKey: string;
+  signature: number[];
+  githubId: string;
+  timestamp: number;
+}
