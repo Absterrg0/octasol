@@ -3,14 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Calendar } from "lucide-react"
-import { ExternalLink } from "lucide-react"
+import { Calendar, Plus, Shield, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, FolderOpen } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { ISSUES_PER_PAGE } from "./index"
-import { RefreshCw } from "lucide-react"
-import { AlertCircle } from "lucide-react"
-import { CheckCircle2 } from "lucide-react"
-import { FolderOpen } from "lucide-react"
 import {
   Pagination,
   PaginationContent,
@@ -22,15 +17,17 @@ import {
 } from "@/components/ui/pagination"
 import type { Issue } from "@/app/Redux/Features/git/issues"
 import { useState } from "react"
-import { BountyDialog } from "./BountyDialog"
 import React from "react"
+import { IssueActionButtons,IssueStatusBadge } from "./issueStatusButton"
+
+
+
 export const IssuesCard = ({ 
     selectedRepo, 
     issues, 
     onRefresh
   }: any) => {
     const [currentPage, setCurrentPage] = useState(1);
-    const [bountyDialogOpen, setBountyDialogOpen] = useState(false);
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
     
     const totalIssues = issues.length;
@@ -43,10 +40,8 @@ export const IssuesCard = ({
     const handlePrevPage = () => setCurrentPage((prev: number) => Math.max(1, prev - 1));
     const handleNextPage = () => setCurrentPage((prev: number) => Math.min(totalPages, prev + 1));
     
-    const handleCreateBounty = (issue: Issue) => {
-      setSelectedIssue(issue);
-      setBountyDialogOpen(true);
-    }
+ 
+    
     const formatDate = (dateString: string) =>
       new Date(dateString).toLocaleDateString("en-US", {
         year: "numeric",
@@ -100,20 +95,20 @@ export const IssuesCard = ({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[1000px]">
                 <TableHeader>
                   <TableRow className="border-slate-200 dark:border-slate-700">
                     <TableHead className="w-[320px] font-semibold text-slate-700 dark:text-slate-300">Issue</TableHead>
                     <TableHead className="w-[110px] font-semibold text-slate-700 dark:text-slate-300">Status</TableHead>
                     <TableHead className="w-[160px] font-semibold text-slate-700 dark:text-slate-300">Author</TableHead>
-                    <TableHead className="w-[120px] font-semibold text-slate-700 dark:text-slate-300">Created</TableHead>
-                    <TableHead className="w-[120px] text-center font-semibold text-slate-700 dark:text-slate-300">Bounty</TableHead>
+                    <TableHead className="w-[140px] font-semibold text-slate-700 dark:text-slate-300">Created</TableHead>
+                    <TableHead className="w-[180px] text-center font-semibold text-slate-700 dark:text-slate-300">Actions</TableHead>
                     <TableHead className="w-[48px] text-right font-semibold text-slate-700 dark:text-slate-300"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {
-                    currentIssues.map((issue: Issue) => (
+                    currentIssues.map((issue: Issue & { status: "NORMAL" | "BOUNTY_INIT" | "ESCROW_INIT" }) => (
                       <TableRow
                         key={issue.id}
                         className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
@@ -131,6 +126,7 @@ export const IssuesCard = ({
                             {issue.state}
                           </Badge>
                         </TableCell>
+                  
                         <TableCell className="w-[160px] align-middle">
                           <div className="flex items-center gap-2">
                             <img
@@ -146,15 +142,10 @@ export const IssuesCard = ({
                             {formatDate(issue.created_at)}
                           </div>
                         </TableCell>
-                        <TableCell className="w-[120px] align-middle text-center">
-                          <Button
-                            onClick={() => handleCreateBounty(issue)}
-                            variant={'outline'}
-                            size="sm"
-                            className="px-3 py-1 h-8 rounded-md text-xs font-semibold   whitespace-nowrap"
-                          >
-                            Create Bounty
-                          </Button>
+                        <TableCell className="w-[180px] align-middle text-center">
+                          <IssueActionButtons
+                            issue={issue}
+                          />
                         </TableCell>
                         <TableCell className="w-[48px] align-middle text-right">
                           <Button variant="ghost" size="icon" asChild className="h-8 w-8 p-0">
@@ -245,13 +236,7 @@ export const IssuesCard = ({
         </CardContent>
       </Card>
       
-      {/* Bounty Dialog */}
-      <BountyDialog
-        open={bountyDialogOpen}
-        onOpenChange={setBountyDialogOpen}
-        issue={selectedIssue}
-        selectedRepo={selectedRepo}
-      />
+   
     </>
   )
   }

@@ -1014,3 +1014,76 @@ export const setWalletAddress = async (githubId: bigint, walletAddress: string |
     return false;
   }
 };
+
+
+
+
+
+
+export const getBountiesByRepoName = async (repoName:string)=>{
+
+
+  try{
+    const bounties = await db.bounty.findMany({
+      where:{
+        repoName:repoName,
+      },
+      include:{
+        submissions:true
+      }
+    });
+
+    return bounties;
+  }catch(e){
+    await logToDiscord(`dbUtils/getBountiesByRepoName: ${(e as any).message}`, "ERROR");
+    console.error(e);
+    return [];
+  }
+}
+
+
+
+
+
+type EscrowedBountyData = {
+  bountyname: string;
+  price: number;
+  bountyDescription: string;
+  skills: string[];
+  time: string;
+  primaryContact: string;
+  issueNumber: number;
+  repoName: string;
+};
+
+export const setEscrowedBounty = async (bountyData: EscrowedBountyData) => {
+
+  try{
+
+    const bountyAlreadyExists = await db.bounty.findFirst({
+      where:{
+        issueNumber:bountyData.issueNumber,
+        repoName:bountyData.repoName
+      }
+    })
+
+    if(bountyAlreadyExists){
+      return false
+    }
+
+    await db.bounty.create({
+      data:{
+        ...bountyData,
+        status:0
+      },
+
+    })
+
+    return true
+  }catch(e){
+    await logToDiscord(`dbUtils/setEscrowedBounty: ${(e as any).message}`, "ERROR");
+    console.error(e);
+    return false
+  }
+}
+

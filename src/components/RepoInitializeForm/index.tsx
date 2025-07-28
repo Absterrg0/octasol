@@ -37,7 +37,7 @@ import {
 import { setRepositories, setSelectedRepo } from "@/app/Redux/Features/git/repoInitialize"
 import { setInstallationId } from "@/app/Redux/Features/git/githubInstallation"
 import { clearError, setError } from "@/app/Redux/Features/error/error"
-import { POST } from "@/config/axios/requests"
+import { POST,GET} from "@/config/axios/requests"
 import { getRepo, githubInstallations } from "@/config/axios/Breakpoints"
 import { astronautIcon} from "../Svg/svg"
 import RepoSearch from "../Input/RepoSearch"
@@ -118,8 +118,9 @@ export default function RepoInitializeForm() {
   const fetchIssues = async (repo: Repository) => {
     if (!installationId) return
     try {
-      const response = await POST(getRepo, { repo: repo.full_name, installationId })
-      dispatch(setIssues(response?.response?.data || []))
+      const response = await GET(`${getRepo}?repo=${repo.full_name}&installationId=${installationId}`)
+      console.log(response);
+      dispatch(setIssues(response || []))
     } catch (error) {
       console.error("Failed to fetch issues:", error)
       dispatch(setIssues([]))
@@ -156,7 +157,12 @@ export default function RepoInitializeForm() {
   return (
     <div className="min-h-screen">
       <div className=" mx-auto px-4 py-8 w-full">
-        <Header />
+      <div className="text-center space-y-4 py-8">
+    <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Repository Dashboard</h1>
+    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+      Select a repository to view its details and issues.
+    </p>
+  </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 mt-8">
           {/* Main Content Area */}
@@ -300,18 +306,6 @@ export default function RepoInitializeForm() {
     </div>
   )
 }
-
-// --- Sub-components ---
-const Header = () => (
-  <div className="text-center space-y-4 py-8">
-    <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Repository Dashboard</h1>
-    <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-      Select a repository to view its details and issues.
-    </p>
-  </div>
-)
-
-
 
 
 

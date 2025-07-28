@@ -14,7 +14,8 @@ export interface Issue {
     avatar_url: string
   }
   labels: Array<{ name: string; color: string }>
-  html_url: string
+  html_url: string,
+  status: "NORMAL" | "BOUNTY_INIT" | "ESCROW_INIT"
 }
 const initialIssuesState: Issue[] = [];
 

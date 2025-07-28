@@ -121,6 +121,8 @@ model Sponsor {
 model Bounty {
   id                Int          @id @default(autoincrement())
   bountyname        String
+  repoName          String?      @default("")
+  issueNumber       Int          @default(0)
   price             Int
   status            Int          @default(0) // 0: draft, 1: in review by admin, 2: active, 3: completed, 4: in review by sponsor, 5: rejected by admin, 6: rejected by sponsor
   bountyDescription String

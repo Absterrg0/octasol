@@ -1,13 +1,11 @@
 "use client"
-
-import React from "react"
 import { useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, DollarSign, GitBranch, User, Tags, FileText, Clock, Loader2, Zap } from "lucide-react"
+import { CalendarIcon, GitBranch, Loader2 } from "lucide-react"
 
 // UI Components
 import { Dialog, DialogContent } from "@/components/ui/dialog"
@@ -29,6 +27,7 @@ import { cn } from "@/lib/utils"
 
 // Types
 import type { Issue } from "@/app/Redux/Features/git/issues"
+import { extractTextFromHTML } from "../Bounty"
 
 // --- Form Schema Definition ---
 const bountyFormSchema = z.object({
@@ -39,7 +38,7 @@ const bountyFormSchema = z.object({
   price: z.coerce
     .number({ required_error: "Reward amount is required." })
     .min(5, { message: "Bounty must be at least $5." }),
-  description: z.string().min(50, { message: "Description must be at least 50 characters." }),
+  description: z.string(),
   skills: z.array(z.string()).min(1, { message: "Please select at least one skill." }),
   deadline: z.date({ required_error: "A deadline is required." }),
   contact: z.string().min(3, { message: "Please provide a valid contact method." }),
@@ -62,12 +61,12 @@ interface BountyDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   issue: Issue | null
-  selectedRepo: any
 }
 
-export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: BountyDialogProps) {
+export function BountyDialog({ open, onOpenChange, issue }: BountyDialogProps) {
   const dispatch = useDispatch()
   const user = useSelector((state: any) => state.user)
+  const selectedRepo = useSelector((state:any)=>state.selectedRepo);
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<BountyFormData>({
@@ -83,18 +82,6 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
     },
   })
 
-  // Reset form when issue changes
-  React.useEffect(() => {
-    form.reset({
-      title: issue?.title || "",
-      price: undefined,
-      description: "",
-      skills: [],
-      deadline: undefined,
-      contact: "",
-    })
-  }, [issue, form])
-
   const onSubmit = async (data: BountyFormData) => {
     if (!user || !selectedRepo || !issue) {
       dispatch(setError("User, repository, or issue data is missing."))
@@ -102,16 +89,16 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
     }
 
     setIsLoading(true)
-
     const payload = {
       ...data,
       deadline: data.deadline.toISOString(),
-      issueId: issue.id,
-      repoId: selectedRepo.id,
+      issueNumber: issue.number,
+      repoName: selectedRepo.full_name,
+      githubId:user.githubId,
     }
 
     try {
-      const { response, error } = await POST("/api/create-bounty", payload, {
+      const { response, error } = await POST("/create-bounty", payload, {
         Authorization: `Bearer ${user.accessToken}`,
       })
 
@@ -178,7 +165,7 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                             <Input
                               placeholder="Enter a clear, descriptive title for your bounty"
                               {...field}
-                              className="h-16 text-lg border-2 border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:border-blue-400 dark:focus:ring-blue-900/30 transition-all bg-neutral-950"
+                              className="h-16 text-lg border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:border-blue-400 dark:focus:ring-blue-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
                             />
                           </FormControl>
                           <FormMessage className="text-red-500" />
@@ -193,10 +180,10 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                       render={({ field }) => (
                         <FormItem className="space-y-4">
                           <FormLabel className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-                            Description & Requirements
+                            Description & Requirements <span className="text-xs opacity-70">(Recommended 100 characters)</span>
                           </FormLabel>
                           <FormControl>
-                            <div className="border-2 border-neutral-200 dark:border-neutral-800 rounded-xl overflow-hidden focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-100 dark:focus-within:border-green-400 dark:focus-within:ring-green-900/30 transition-all bg-neutral-950 min-h-[200px]">
+                            <div className="border-2 border-neutral-600 dark:border-neutral-600 rounded-xl overflow-hidden focus-within:border-green-500 focus-within:ring-2 focus-within:ring-green-100 dark:focus-within:border-green-400 dark:focus-within:ring-green-900/30 transition-all bg-neutral-900 min-h-[200px]">
                               <RichTextEditor content={field.value} onChange={field.onChange} />
                             </div>
                           </FormControl>
@@ -222,7 +209,7 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                               placeholder="Select the skills and technologies needed"
                               variant="inverted"
                               maxCount={5}
-                              className="border-2 border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-purple-500 dark:focus:border-purple-400 bg-neutral-950"
+                              className="border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-purple-500 dark:focus:border-purple-400 bg-neutral-900"
                             />
                           </FormControl>
                           <FormMessage className="text-red-500" />
@@ -233,10 +220,9 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                 </div>
 
                 {/* Sidebar - 2/5 width on xl screens */}
-                <div className="xl:col-span-2 border-t xl:border-t-0 xl:border-l border-neutral-200 dark:border-neutral-800 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950">
+                <div className="xl:col-span-2 border-t xl:border-t-0 xl:border-l border-neutral-200 dark:border-neutral-800 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950 rounded-xl">
                   <div className="h-full flex flex-col">
                     <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
-                      
                       <FormField
                         control={form.control}
                         name="price"
@@ -247,22 +233,17 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                             </FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-neutral-500 text-lg">
+                                <Input
+                                  type="number"
+                                  placeholder="500"
+                                  {...field}
+                                  min={5}
+                                  step="any"
+                                  className="h-16 pl-12 pr-4 text-lg font-semibold border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:border-green-400 dark:focus:ring-green-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
+                                />
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300 text-xl font-bold pointer-events-none">
                                   $
                                 </span>
-                                <div className="relative group">
-                                  <Input
-                                    type="number"
-                                    placeholder="500 USD"
-                                    {...field}
-                                    min={5}
-                                    step="any"
-                                    className="h-16 pl-12 pr-4 text-lg font-semibold border-2 border-neutral-300 dark:border-neutral-700 rounded-xl focus:border-neutral-700 focus:ring-2 focus:ring-neutral-200 dark:focus:border-neutral-500 dark:focus:ring-neutral-900/60 transition-all b shadow-sm text-neutral-900 dark:text-neutral-100"
-                                  />
-                                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-700 dark:text-neutral-400 text-xl font-bold pointer-events-none transition-all group-focus-within:text-neutral-900 dark:group-focus-within:text-neutral-200">
-                                    $
-                                  </span>
-                                </div>
                               </div>
                             </FormControl>
                             <FormMessage className="text-red-500" />
@@ -285,8 +266,8 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                                   <Button
                                     variant="outline"
                                     className={cn(
-                                      "h-16 w-full justify-start text-left font-medium text-lg border-2 border-neutral-200 dark:border-neutral-800 rounded-xl hover:bg-neutral-50 dark:hover:bg-neutral-900/50 focus:border-orange-500 dark:focus:border-orange-400 transition-all bg-neutral-950",
-                                      !field.value && "text-neutral-500",
+                                      "h-16 w-full justify-start text-left font-medium text-lg border-2 border-neutral-600 dark:border-neutral-600 rounded-xl hover:bg-neutral-700 dark:hover:bg-neutral-700 focus:border-orange-500 dark:focus:border-orange-400 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-900/30 transition-all bg-neutral-900 text-neutral-100",
+                                      !field.value && "text-neutral-400",
                                     )}
                                   >
                                     <CalendarIcon className="mr-3 h-6 w-6" />
@@ -320,9 +301,9 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                             </FormLabel>
                             <FormControl>
                               <Input
-                                placeholder="Discord, email, or preferred method"
+                                placeholder="Enter your contact (e.g. Discord, email)"
                                 {...field}
-                                className="h-16 text-lg border-2 border-neutral-200 dark:border-neutral-800 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 dark:focus:border-indigo-400 dark:focus:ring-indigo-900/30 transition-all bg-neutral-950"
+                                className="h-14 text-base border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:border-blue-400 dark:focus:ring-blue-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
                               />
                             </FormControl>
                             <FormMessage className="text-red-500" />
@@ -340,19 +321,18 @@ export function BountyDialog({ open, onOpenChange, issue, selectedRepo }: Bounty
                           className={cn(
                             "flex-1 h-14 text-lg font-semibold rounded-2xl transition-all flex items-center justify-center shadow-md",
                             form.formState.isValid
-                              ? "bg-gradient-to-br from-emerald-500 via-blue-500 to-indigo-500 hover:from-emerald-600 hover:via-blue-600 hover:to-indigo-600 text-white shadow-lg hover:shadow-xl focus:ring-4 focus:ring-emerald-200 dark:focus:ring-emerald-900"
-                              : "bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed border border-neutral-300 dark:border-neutral-700"
+                              ? "bg-neutral-800 dark:bg-neutral-900 text-neutral-100 dark:text-neutral-50 border border-neutral-700 dark:border-neutral-800 hover:bg-green-600 dark:hover:bg-green-700 hover:border-green-500 dark:hover:border-green-600 focus:ring-4 focus:ring-green-100 dark:focus:ring-green-900"
+                              : "bg-neutral-200 dark:bg-neutral-800 text-neutral-400 dark:text-neutral-500 cursor-not-allowed border border-neutral-300 dark:border-neutral-700",
                           )}
                         >
                           {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
-                          {form.formState.isValid ? "Create Bounty" : "Complete Required Fields"}
+                          {"Create Bounty"}
                         </Button>
-
                         <Button
                           type="button"
                           variant="ghost"
                           onClick={() => onOpenChange(false)}
-                          className="flex-1 h-14 text-lg font-semibold rounded-2xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all flex items-center justify-center shadow-sm hover:shadow-md focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900"
+                          className="flex-1 h-14 text-lg font-semibold rounded-2xl border border-red-300 dark:border-red-700 bg-white dark:bg-neutral-900 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-800 transition-all flex items-center justify-center shadow-sm hover:shadow-md focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900"
                         >
                           Cancel
                         </Button>

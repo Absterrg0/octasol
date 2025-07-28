@@ -6,9 +6,10 @@ import {
   setUserbyInstallationId,
   getAccessToken 
 } from "@/lib/apiUtils";
+import { checkPRforLinkedIssue } from "./util";
 
 // Types for GitHub webhook events
-interface GitHubWebhookEvent {
+export interface GitHubWebhookEvent {
   action?: string;
   installation?: {
     id: number;
@@ -41,6 +42,7 @@ interface GitHubWebhookEvent {
     number: number;
     title: string;
     state: string;
+    body: string;
     merged: boolean;
     user: {
       id: number;
@@ -97,11 +99,13 @@ async function logWebhookEvent(
     } : null,
     pull_request: event.pull_request ? {
       id: event.pull_request.id,
+      body:event.pull_request.body,
       number: event.pull_request.number,
       title: event.pull_request.title,
       state: event.pull_request.state,
       merged: event.pull_request.merged
-    } : null
+    } : null,
+  
   };
 
   await logToDiscord(
@@ -180,11 +184,13 @@ async function handleIssueEvent(event: GitHubWebhookEvent) {
  * Handle pull request events
  */
 async function handlePullRequestEvent(event: GitHubWebhookEvent) {
-  if (!event.pull_request || !event.action || !event.repository) {
+  if (!event.pull_request || !event.action || !event.repository || !event.installation) {
     return;
   }
 
-  const { pull_request, action, repository } = event;
+
+
+  const { pull_request, action, repository,installation } = event;
   
   const eventMessage = `**Pull Request ${action.toUpperCase()}**\n` +
     `Repository: ${repository.full_name}\n` +
@@ -192,6 +198,18 @@ async function handlePullRequestEvent(event: GitHubWebhookEvent) {
     `State: ${pull_request.state}\n` +
     `Merged: ${pull_request.merged}\n` +
     `User: ${pull_request.user.login}`;
+
+  switch(action){
+    case "opened":
+      await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number);
+      break;
+    case "reopened":
+      await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number);
+      break;
+    default:
+  }
+
+
 
   const logLevel = action === 'closed' && pull_request.merged ? "INFO" : "INFO";
   await logToDiscord(eventMessage, logLevel);
