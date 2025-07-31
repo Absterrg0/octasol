@@ -19,6 +19,8 @@ import type { Issue } from "@/app/Redux/Features/git/issues"
 import { useState } from "react"
 import React from "react"
 import { IssueActionButtons,IssueStatusBadge } from "./issueStatusButton"
+import { BountyDialog } from "./BountyDialog"
+import EscrowDialog from "./EscrowDialog"
 
 
 
@@ -143,9 +145,20 @@ export const IssuesCard = ({
                           </div>
                         </TableCell>
                         <TableCell className="w-[180px] align-middle text-center">
-                          <IssueActionButtons
-                            issue={issue}
-                          />
+                          {issue.status === "NORMAL" && (
+                            <BountyDialog issue ={issue}></BountyDialog>
+                          )}
+                          {issue.status === "BOUNTY_INIT" && (
+                            <EscrowDialog
+                            issue = {issue}
+                            ></EscrowDialog>
+                          )}
+                          {issue.status === "ESCROW_INIT" && (
+                            <Badge variant="default" className="text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/50">
+                              Escrow Locked
+                            </Badge>
+                          )}
+                          
                         </TableCell>
                         <TableCell className="w-[48px] align-middle text-right">
                           <Button variant="ghost" size="icon" asChild className="h-8 w-8 p-0">

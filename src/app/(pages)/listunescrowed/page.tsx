@@ -13,11 +13,11 @@ export default function ListUnescrowed() {
   const router = useRouter();
   const user = useSelector((state: any) => state.user);
 
-  useEffect(() => {
-    if (user?.login) {
-      if (!adminGithub.includes(user.login.toLowerCase())) router.back();
-    }
-  }, [user]);
+  // useEffect(() => {
+  //   if (user?.login) {
+  //     if (!adminGithub.includes(user.login.toLowerCase())) router.back();
+  //   }
+  // }, [user]);
 
   const [activeTab, setActiveTab] = useState<string>(
     localStorage.getItem("activeTab") || "subheading"

@@ -1087,3 +1087,67 @@ export const setEscrowedBounty = async (bountyData: EscrowedBountyData) => {
   }
 }
 
+
+export const setEscrowedSubmission = async (submissionData:any)=>{
+  try{
+
+    await db.submission.create({
+      data:{
+        ...submissionData,
+      }
+    })
+
+    return true
+  }
+  catch(e){
+    await logToDiscord(`dbUtils/setEscrowedSubmission: ${(e as any).message}`, "ERROR");
+    console.error(e);
+    return false
+  }
+}
+
+
+
+
+
+export const getBounty = async (issueNumber:number,repoName:string)=>{
+  try{
+    const bounty = await db.bounty.findFirst({
+      where:{
+        issueNumber:issueNumber,
+        repoName:repoName
+      },
+      include:{
+        submissions:true
+      }
+    })
+
+    return bounty;
+  }catch(e){
+    await logToDiscord(`dbUtils/getBountySubmission: ${(e as any).message}`, "ERROR");
+    console.error(e);
+    return false;
+  }
+}
+
+
+
+
+export const getBountySubmissionsById = async(bountyId:number)=>{
+  try{
+    const submissions = await db.submission.findMany({
+      where:{
+        bountyId:bountyId
+      },
+      include:{
+        bounty:true
+      }
+    })
+    return submissions;
+  }
+  catch(e){
+    await logToDiscord(`dbUtils/getBountySubmissions: ${(e as any).message}`, "ERROR");
+    console.error(e);
+    return false;
+  }
+} 

@@ -5,10 +5,10 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { CalendarIcon, GitBranch, Loader2 } from "lucide-react"
+import { CalendarIcon, GitBranch, Loader2, Plus } from "lucide-react"
 
 // UI Components
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
@@ -58,12 +58,11 @@ const frameworksList = [
 
 // --- Component Definition ---
 interface BountyDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
+
   issue: Issue | null
 }
 
-export function BountyDialog({ open, onOpenChange, issue }: BountyDialogProps) {
+export function BountyDialog({ issue }: BountyDialogProps) {
   const dispatch = useDispatch()
   const user = useSelector((state: any) => state.user)
   const selectedRepo = useSelector((state:any)=>state.selectedRepo);
@@ -103,7 +102,6 @@ export function BountyDialog({ open, onOpenChange, issue }: BountyDialogProps) {
       })
 
       if (response && response.status === 200) {
-        onOpenChange(false)
         dispatch(clearError())
       } else if (error) {
         dispatch(setError((error as any).message || "Failed to create bounty"))
@@ -116,7 +114,13 @@ export function BountyDialog({ open, onOpenChange, issue }: BountyDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog>
+      <DialogTrigger>
+        <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Plus size={16} />
+          Create Bounty
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-7xl w-full max-h-[95vh] p-0 border-0 rounded-2xl shadow-2xl bg-white dark:bg-neutral-950 overflow-hidden">
         {/* Fixed Header */}
         <div className="flex-shrink-0 px-8 py-6 border-b border-neutral-200 dark:border-neutral-800 bg-gradient-to-r from-slate-50 via-white to-gray-50 dark:from-neutral-900 dark:via-neutral-950 dark:to-neutral-900">
@@ -193,7 +197,109 @@ export function BountyDialog({ open, onOpenChange, issue }: BountyDialogProps) {
                     />
 
                     {/* Skills */}
-                    <FormField
+                
+                  </div>
+                </div>
+
+                {/* Sidebar - 2/5 width on xl screens */}
+                <div className="xl:col-span-2 border-t xl:border-t-0 xl:border-l border-neutral-200 dark:border-neutral-800 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950 rounded-xl">
+                  <div className="h-full flex flex-col">
+                    <div className="flex flex-col gap-8 overflow-y-auto px-8 py-8">
+                      {/* Reward Amount & Contact Method in the same row */}
+                      <div className="flex flex-col md:flex-row gap-6 w-full">
+                        <div className="flex-1">
+                          <FormField
+                            control={form.control}
+                            name="price"
+                            render={({ field }) => (
+                              <FormItem className="space-y-4">
+                                <FormLabel className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                  Reward Amount
+                                </FormLabel>
+                                <FormControl>
+                                  <div className="relative">
+                                    <Input
+                                      type="number"
+                                      placeholder="500"
+                                      {...field}
+                                      min={5}
+                                      step="any"
+                                      className="h-16 pl-12 pr-4 text-lg font-semibold border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:border-green-400 dark:focus:ring-green-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
+                                    />
+                                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300 text-xl font-bold pointer-events-none">
+                                      $
+                                    </span>
+                                  </div>
+                                </FormControl>
+                                <FormMessage className="text-red-500" />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <FormField
+                            control={form.control}
+                            name="contact"
+                            render={({ field }) => (
+                              <FormItem className="space-y-4">
+                                <FormLabel className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                  Contact Method
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder="Enter your contact (e.g. Discord, email)"
+                                    {...field}
+                                    className="h-16 text-base border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:border-blue-400 dark:focus:ring-blue-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
+                                  />
+                                </FormControl>
+                                <FormMessage className="text-red-500" />
+                              </FormItem>
+                            )}
+                          />
+                          
+                        </div>
+                      </div>
+
+                      {/* Deadline below */}
+                      <div className="flex flex-col gap-6">
+                        <FormField
+                          control={form.control}
+                          name="deadline"
+                          render={({ field }) => (
+                            <FormItem className="space-y-4">
+                              <FormLabel className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
+                                Deadline
+                              </FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        "h-16 w-full justify-start text-left font-medium text-lg border-2 border-neutral-600 dark:border-neutral-600 rounded-xl hover:bg-neutral-700 dark:hover:bg-neutral-700 focus:border-orange-500 dark:focus:border-orange-400 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-900/30 transition-all bg-neutral-900 text-neutral-100",
+                                        !field.value && "text-neutral-400",
+                                      )}
+                                    >
+                                      <CalendarIcon className="mr-3 h-6 w-6" />
+                                      {field.value ? format(field.value, "PPP") : <span>Select deadline</span>}
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    disabled={(date) => date < new Date()}
+                                    initialFocus
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage className="text-red-500" />
+                            </FormItem>
+                          )}
+                        />
+                            <FormField
                       control={form.control}
                       name="skills"
                       render={({ field }) => (
@@ -216,100 +322,7 @@ export function BountyDialog({ open, onOpenChange, issue }: BountyDialogProps) {
                         </FormItem>
                       )}
                     />
-                  </div>
-                </div>
-
-                {/* Sidebar - 2/5 width on xl screens */}
-                <div className="xl:col-span-2 border-t xl:border-t-0 xl:border-l border-neutral-200 dark:border-neutral-800 bg-gradient-to-b from-neutral-50 to-white dark:from-neutral-900 dark:to-neutral-950 rounded-xl">
-                  <div className="h-full flex flex-col">
-                    <div className="flex-1 overflow-y-auto px-8 py-8 space-y-8">
-                      <FormField
-                        control={form.control}
-                        name="price"
-                        render={({ field }) => (
-                          <FormItem className="space-y-4">
-                            <FormLabel className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-                              Reward Amount
-                            </FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  placeholder="500"
-                                  {...field}
-                                  min={5}
-                                  step="any"
-                                  className="h-16 pl-12 pr-4 text-lg font-semibold border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:border-green-400 dark:focus:ring-green-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
-                                />
-                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-neutral-300 text-xl font-bold pointer-events-none">
-                                  $
-                                </span>
-                              </div>
-                            </FormControl>
-                            <FormMessage className="text-red-500" />
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* Deadline */}
-                      <FormField
-                        control={form.control}
-                        name="deadline"
-                        render={({ field }) => (
-                          <FormItem className="space-y-4">
-                            <FormLabel className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-                              Deadline
-                            </FormLabel>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <FormControl>
-                                  <Button
-                                    variant="outline"
-                                    className={cn(
-                                      "h-16 w-full justify-start text-left font-medium text-lg border-2 border-neutral-600 dark:border-neutral-600 rounded-xl hover:bg-neutral-700 dark:hover:bg-neutral-700 focus:border-orange-500 dark:focus:border-orange-400 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-900/30 transition-all bg-neutral-900 text-neutral-100",
-                                      !field.value && "text-neutral-400",
-                                    )}
-                                  >
-                                    <CalendarIcon className="mr-3 h-6 w-6" />
-                                    {field.value ? format(field.value, "PPP") : <span>Select deadline</span>}
-                                  </Button>
-                                </FormControl>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0" align="start">
-                                <Calendar
-                                  mode="single"
-                                  selected={field.value}
-                                  onSelect={field.onChange}
-                                  disabled={(date) => date < new Date()}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
-                            <FormMessage className="text-red-500" />
-                          </FormItem>
-                        )}
-                      />
-
-                      {/* Contact */}
-                      <FormField
-                        control={form.control}
-                        name="contact"
-                        render={({ field }) => (
-                          <FormItem className="space-y-4">
-                            <FormLabel className="text-xl font-semibold text-neutral-900 dark:text-neutral-100">
-                              Contact Method
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter your contact (e.g. Discord, email)"
-                                {...field}
-                                className="h-14 text-base border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:border-blue-400 dark:focus:ring-blue-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
-                              />
-                            </FormControl>
-                            <FormMessage className="text-red-500" />
-                          </FormItem>
-                        )}
-                      />
+                      </div>
                     </div>
 
                     {/* Action Buttons - Fixed at bottom of sidebar */}
@@ -327,14 +340,6 @@ export function BountyDialog({ open, onOpenChange, issue }: BountyDialogProps) {
                         >
                           {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                           {"Create Bounty"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => onOpenChange(false)}
-                          className="flex-1 h-14 text-lg font-semibold rounded-2xl border border-red-300 dark:border-red-700 bg-white dark:bg-neutral-900 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-800 transition-all flex items-center justify-center shadow-sm hover:shadow-md focus:ring-2 focus:ring-red-200 dark:focus:ring-red-900"
-                        >
-                          Cancel
                         </Button>
                       </div>
                     </div>

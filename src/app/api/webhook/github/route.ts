@@ -201,10 +201,10 @@ async function handlePullRequestEvent(event: GitHubWebhookEvent) {
 
   switch(action){
     case "opened":
-      await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number);
+      await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number,pull_request.user.id);
       break;
     case "reopened":
-      await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number);
+      await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number,pull_request.user.id);
       break;
     default:
   }

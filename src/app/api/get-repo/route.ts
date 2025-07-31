@@ -2,17 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAccessToken } from "@/lib/apiUtils";
 import axios from "axios";
 import { getBountiesByRepoName } from "@/utils/dbUtils";
+import { db } from "@/lib/db";
 
 export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
 
-    const repo = searchParams.get("repo");
     const installationId = searchParams.get("installationId");
-    console.log(repo);
-    if (!repo) {
+    const id = Number(searchParams.get("id"));
+
+    const sponsor = await db.sponsor.findUnique({
+      where: {
+        id:id,
+      },
+    })
+
+    if (!sponsor) {
       return NextResponse.json(
-        { error: "Repository name is required" },
+        { error: "Sponsor is required" },
         { status: 400 }
       );
     }
@@ -24,10 +31,24 @@ export async function GET(req: NextRequest) {
       );
     }
 
+ 
+
+
     const accessToken = await getAccessToken(installationId as unknown as number);
 
+    const reposResponse = await axios.get(
+      `https://api.github.com/repos/${sponsor?.name}`,
+      {
+        headers: {
+          Authorization: `token ${accessToken}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    )
+    const repo = reposResponse.data;
+
     const issuesResponse = await axios.get(
-      `https://api.github.com/repos/${repo}/issues`,
+      `https://api.github.com/repos/${repo.full_name}/issues`,
       {
         headers: {
           Authorization: `token ${accessToken}`,
@@ -36,7 +57,7 @@ export async function GET(req: NextRequest) {
       }
     );
 
-    const bounties = await getBountiesByRepoName(repo);
+    const bounties = await getBountiesByRepoName(repo.full_name);
 
 
     // Create a map of issue numbers to their bounty data for easy lookup
@@ -73,7 +94,10 @@ export async function GET(req: NextRequest) {
 
     // console.log(issuesWithStatus);
     
-    return NextResponse.json(issuesWithStatus || []);
+    return NextResponse.json({
+      issues:issuesWithStatus,
+      repo:repo
+    });
   }
   catch(e){
     console.error(e);

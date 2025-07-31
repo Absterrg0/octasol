@@ -11,7 +11,6 @@ export function IssueActionButtons({
   issue, 
 
 }:{issue:Issue}) {
-    const [bountyDialogOpen, setBountyDialogOpen] = useState(false);
     const selectedRepo = useSelector((state:any)=>state.selectedRepo);
  
     const handleCreateEscrow = ()=>{
@@ -30,7 +29,6 @@ export function IssueActionButtons({
           <Button   
             variant="outline"
             size="sm"
-            onClick={()=>setBountyDialogOpen(true)}
             className="flex items-center gap-2"
           >
             <Plus size={16} />
@@ -44,35 +42,21 @@ export function IssueActionButtons({
             <Button
               variant="outline"
               size="sm"
-              onClick={()=>setBountyDialogOpen(true)}
               className="flex items-center gap-2"
             >
               <Shield size={16} />
               Create Escrow
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleViewPR}
-              className="flex items-center gap-2"
-            >
-              <ExternalLink size={16} />
-              View PR
-            </Button>
+      
           </div>
         )
       
       case "ESCROW_INIT":
         return (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={()=>setBountyDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <ExternalLink size={16} />
-            View PR
-          </Button>
+          <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 text-xs font-medium">
+            <Shield size={16} />
+            Escrow Created
+          </span>
         )
       
       default:
@@ -83,8 +67,6 @@ export function IssueActionButtons({
   return <div className="flex justify-end">{renderButtons()}
      {/* Bounty Dialog */}
      <BountyDialog
-        open={bountyDialogOpen}
-        onOpenChange={setBountyDialogOpen}
         issue={issue}
       />
   </div>

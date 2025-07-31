@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import { getAccessToken } from "@/lib/apiUtils";
 import { logToDiscord } from "@/utils/logger";
+import { db } from "@/lib/db";
 
 /**
  *
@@ -33,9 +34,17 @@ export async function GET(req: NextRequest) {
       }
     );
 
+    const sponsorRepos = await db.sponsor.findMany({});
+    const sponsorRepoNames = new Set(
+      sponsorRepos.map((repo: any) => repo.name)
+    );
 
+    // Filter out repositories whose name is present in sponsorRepos
+    const filteredRepositories = reposResponse.data.repositories.filter(
+      (repo: any) => !sponsorRepoNames.has(repo.full_name)
+    );
 
-    return NextResponse.json({ repositories: reposResponse.data.repositories });
+    return NextResponse.json({ repositories: filteredRepositories });
   } catch (error) {
     await logToDiscord(`github-repos: ${(error as any).message}`, "ERROR");
 

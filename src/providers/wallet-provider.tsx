@@ -13,7 +13,7 @@ require("@solana/wallet-adapter-react-ui/styles.css");
 
 export default function SolanaProvider({children}:{children:React.ReactNode}){
     
-    const endpoint = process.env.NEXT_PUBLIC_BLOCKCHAIN_URL || clusterApiUrl('devnet');
+    const endpoint = clusterApiUrl('devnet');
 
     return (
         <ConnectionProvider endpoint={endpoint}>
