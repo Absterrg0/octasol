@@ -30,8 +30,8 @@ import {
 } from "lucide-react"
 import { useSelector } from "react-redux"
 import { GET } from "@/config/axios/requests"
-import idl from "../../../contract/idl/octasol_contract.json"
-import type { OctasolContract } from "../../../contract/types/octasol_contract"
+import idl from "../../../../../../../../contract/idl/octasol_contract.json"
+import type { OctasolContract } from "../../../../../../../../contract/types/octasol_contract"
 import { AnchorProvider, Program, web3, BN } from "@coral-xyz/anchor"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import { 
@@ -139,25 +139,6 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
     }
   }
 
-  const checkTokenBalance = async (tokenAccount: web3.PublicKey, requiredAmount: BN) => {
-    try {
-      const accountInfo = await connection.getAccountInfo(tokenAccount)
-      if (!accountInfo) {
-        return { hasBalance: false, balance: new BN(0) }
-      }
-
-      // Parse token account data to get balance
-      const accountData = accountInfo.data
-      const balance = new BN(accountData.slice(64, 72), 'le') // Token amount is at bytes 64-71
-
-      return {
-        hasBalance: balance.gte(requiredAmount),
-        balance: balance
-      }
-    } catch (error) {
-      return { hasBalance: false, balance: new BN(0) }
-    }
-  }
 
   const handleCreateEscrow = async (submission: Submission) => {
     if (!wallet.connected || !wallet.publicKey || !wallet.signTransaction) {

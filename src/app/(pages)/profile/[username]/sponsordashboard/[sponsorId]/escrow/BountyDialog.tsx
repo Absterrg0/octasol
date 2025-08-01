@@ -19,7 +19,7 @@ import RichTextEditor from "@/components/RichTextEditor"
 import { Badge } from "@/components/ui/badge"
 
 // Redux & API
-import { POST } from "@/config/axios/requests"
+import { POST, PUT } from "@/config/axios/requests"
 import { clearError, setError } from "@/app/Redux/Features/error/error"
 
 // Utils
@@ -27,7 +27,15 @@ import { cn } from "@/lib/utils"
 
 // Types
 import type { Issue } from "@/app/Redux/Features/git/issues"
-import { extractTextFromHTML } from "../Bounty"
+import { extractTextFromHTML } from "../../../../../../../components/Bounty"
+import { useConnection, useWallet } from "@solana/wallet-adapter-react"
+import {toast} from 'react-toastify';
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor"
+import { OctasolContract } from "../../../../../../../../contract/types/octasol_contract"
+import idl from "../../../../../../../../contract/idl/octasol_contract.json"
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token"
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token"
+import { Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js"
 
 // --- Form Schema Definition ---
 const bountyFormSchema = z.object({
@@ -67,8 +75,10 @@ export function BountyDialog({ issue }: BountyDialogProps) {
   const user = useSelector((state: any) => state.user)
   const selectedRepo = useSelector((state:any)=>state.selectedRepo);
   const [isLoading, setIsLoading] = useState(false)
-
-  const form = useForm<BountyFormData>({
+  const { connection } = useConnection()
+  
+  const wallet = useWallet();
+    const form = useForm<BountyFormData>({
     resolver: zodResolver(bountyFormSchema),
     mode: "onTouched",
     defaultValues: {
@@ -86,32 +96,175 @@ export function BountyDialog({ issue }: BountyDialogProps) {
       dispatch(setError("User, repository, or issue data is missing."))
       return
     }
-
-    setIsLoading(true)
-    const payload = {
-      ...data,
-      deadline: data.deadline.toISOString(),
-      issueNumber: issue.number,
-      repoName: selectedRepo.full_name,
-      githubId:user.githubId,
+  
+    if(!wallet.connected || !wallet.publicKey || !wallet.signTransaction) {
+      toast.error("Please connect your wallet first")
+      return
     }
-
+  
+    setIsLoading(true)
+    let bountyId: string | null = null;
+    
     try {
+      const payload = {
+        ...data,
+        deadline: data.deadline.toISOString(),
+        issueNumber: issue.number,
+        repoName: selectedRepo.full_name,
+        status: 'CREATING' // Start with CREATING status
+      }
+  
+      // First DB query - create bounty with CREATING status
       const { response, error } = await POST("/create-bounty", payload, {
         Authorization: `Bearer ${user.accessToken}`,
       })
-
-      if (response && response.status === 200) {
-        dispatch(clearError())
-      } else if (error) {
-        dispatch(setError((error as any).message || "Failed to create bounty"))
+  
+      if (!response || response.status !== 200) {
+        dispatch(setError("Failed to create bounty record"))
+        return
       }
-    } catch (err) {
-      dispatch(setError("An unexpected error occurred."))
+  
+      bountyId = response.data.id;
+      
+      // Setup blockchain transaction
+      const anchorWallet = {
+        publicKey: wallet.publicKey,
+        signTransaction: wallet.signTransaction,
+        signAllTransactions: wallet.signAllTransactions!,
+      }
+      
+      const provider = new AnchorProvider(connection, anchorWallet, {
+        preflightCommitment: "confirmed",
+        commitment: "confirmed"
+      })
+      const program = new Program(idl as OctasolContract, provider)
+  
+      const bountyIdBN = new BN(bountyId);
+      const amountBN = new BN(data.price * 1000000);
+  
+      const USDCMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+  
+      const maintainerTokenAccount = getAssociatedTokenAddressSync(USDCMint, wallet.publicKey, false, TOKEN_PROGRAM_ID)
+  
+      const bountyAccountKp = Keypair.generate();
+      const [escrowAuthorityPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("escrow_auth"), bountyAccountKp.publicKey.toBuffer()],
+        program.programId
+      );
+      
+      const escrowTokenAccount = await getAssociatedTokenAddress(
+        USDCMint,
+        escrowAuthorityPda,
+        true
+      );
+  
+      // Execute blockchain transaction
+      console.log("About to initialize bounty on-chain with the following parameters:");
+      console.log("bountyId:", bountyId);
+      console.log("amountBN:", amountBN.toString());
+      console.log("Accounts:");
+      console.log({
+        maintainer: wallet.publicKey.toString(),
+        bounty: bountyAccountKp.publicKey.toString(),
+        maintainerTokenAccount: maintainerTokenAccount.toString(),
+        escrowAuthority: escrowAuthorityPda.toString(),
+        keeper: process.env.NEXT_PUBLIC_ADMIN_PUBLIC_KEY!,
+        escrowTokenAccount: escrowTokenAccount.toString(),
+        mint: USDCMint.toString(),
+        systemProgram: SystemProgram.programId.toString(),
+        tokenProgram: TOKEN_PROGRAM_ID.toString(),
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID.toString(),
+        rent: SYSVAR_RENT_PUBKEY.toString(),
+      });
+      console.log("Signers:", [bountyAccountKp.publicKey.toString()]);
+
+      let txSignature;
+      try {
+        txSignature = await program.methods
+          .initializeBounty(bountyIdBN, amountBN)
+          .accounts({
+            maintainer: wallet.publicKey,
+            bounty: bountyAccountKp.publicKey,
+            maintainerTokenAccount: maintainerTokenAccount,
+            escrowAuthority: escrowAuthorityPda,
+            keeper: new PublicKey(process.env.NEXT_PUBLIC_ADMIN_PUBLIC_KEY!),
+            escrowTokenAccount: escrowTokenAccount,
+            mint: USDCMint,
+            systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            rent: SYSVAR_RENT_PUBKEY,
+          })
+          .signers([bountyAccountKp])
+          .rpc();
+        console.log("Blockchain transaction successful. txSignature:", txSignature);
+      } catch (err) {
+        console.error("Error during blockchain transaction:", err);
+        throw err;
+      }
+      const payloadPut = {
+        ...data,
+        deadline: data.deadline.toISOString(),
+        issueNumber: issue.number,
+        repoName: selectedRepo.full_name,
+        status: 'UPDATING' // Start with CREATING status
+      }
+      // Update bounty with PDA and change status to ACTIVE
+      const response2 = await PUT("/create-bounty", {
+        bountyId,
+        pdaEscrow: escrowAuthorityPda.toString(),
+        status: 2,
+        githubId: user.githubId,
+        blockchainTxSignature: txSignature,
+        payload:payloadPut
+      })
+  
+      if (!response2 || response2.status !== 200) {
+        // Mark bounty as FAILED instead of deleting
+        await PUT("/create-bounty", {
+          bountyId,
+          status: 7,
+        })
+        
+        dispatch(setError("Failed to complete bounty creation. Transaction has been marked as failed."))
+        return
+      }
+  
+      // Success!
+      dispatch(clearError())
+      toast.success("Bounty created successfully!")
+  
+    } catch (error) {
+      console.error("Error creating bounty:", error)
+      
+      const payloadPut = {
+        ...data,
+        deadline: data.deadline.toISOString(),
+        issueNumber: issue.number,
+        repoName: selectedRepo.full_name,
+        status: 'UPDATING' // Start with CREATING status
+      }
+      // Mark bounty as FAILED if we created one
+      if (bountyId) {
+        try {
+          await PUT("/create-bounty", {
+            bountyId,
+            status: 7,
+            payloadPut:payloadPut            
+            })
+          console.log("Successfully marked bounty as failed")
+        } catch (rollbackError) {
+          console.error("Failed to mark bounty as failed:", rollbackError)
+        }
+      }
+      
+      toast.error("Failed to create bounty. Please try again.")
+      dispatch(setError("Failed to create bounty. Please try again."))
     } finally {
       setIsLoading(false)
     }
   }
+
 
   return (
     <Dialog>

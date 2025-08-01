@@ -1,7 +1,6 @@
 'use client'
-import { IssuesCard } from "@/components/RepoInitializeForm/issue-table";
-import { RepoDetailsCard } from "@/components/RepoInitializeForm/repo-details-card";
-
+import { IssuesCard } from "./issue-table";
+import { RepoDetailsCard } from "./repo-details-card";
 import { GET } from "@/config/axios/requests";
 import { getRepo } from "@/config/axios/Breakpoints";
 import { setIssues } from "@/app/Redux/Features/git/issues";

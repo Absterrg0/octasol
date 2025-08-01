@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
-import { Repository } from "./index"
+import { Repository } from "../../../../../../../components/RepoInitializeForm/index"
 import { Lock } from "lucide-react"
 import { Star } from "lucide-react"
 import { GitFork } from "lucide-react"
@@ -7,9 +7,9 @@ import { Code2 } from "lucide-react"
 import { History } from "lucide-react"
 import { Github } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { Badge } from "../ui/badge"
-import { Button } from "../ui/button"
-import { Separator } from "../ui/separator"
+import { Badge } from "../../../../../../../components/ui/badge"
+import { Button } from "../../../../../../../components/ui/button"
+import { Separator } from "../../../../../../../components/ui/separator"
 
 export const RepoDetailsCard = ({ repo }: { repo: Repository }) => (
     <Card>

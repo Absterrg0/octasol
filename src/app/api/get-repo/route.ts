@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     const sponsor = await db.sponsor.findUnique({
       where: {
-        id:id,
+        id: id,
       },
     })
 
@@ -30,9 +30,6 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
-
- 
-
 
     const accessToken = await getAccessToken(installationId as unknown as number);
 
@@ -59,15 +56,14 @@ export async function GET(req: NextRequest) {
 
     const bounties = await getBountiesByRepoName(repo.full_name);
 
-
     // Create a map of issue numbers to their bounty data for easy lookup
     const bountyMap = new Map();
     bounties?.forEach((bounty: any) => {
       bountyMap.set(bounty.issueNumber, bounty);
     });
 
-
-    const issuesOnly = issuesResponse.data.filter((item: any)=>!item.pull_request);
+    const issuesOnly = issuesResponse.data.filter((item: any) => !item.pull_request);
+    
     // Add a "status" key to each issue based on bounty and submission status
     const issuesWithStatus = issuesOnly.map((issue: any) => {
       const bounty = bountyMap.get(issue.number);
@@ -75,13 +71,18 @@ export async function GET(req: NextRequest) {
       let status = "NORMAL";
       
       if (bounty) {
-        // Check if any submission has status 2 (is winner)
-        const hasWinnerSubmission = bounty.submissions?.some((submission: any) => submission.status === 2);
-        
-        if (hasWinnerSubmission) {
-          status = "ESCROW_INIT";
+        // Check if bounty has status 7 - if so, treat as NORMAL
+        if (bounty.status === 7) {
+          status = "NORMAL";
         } else {
-          status = "BOUNTY_INIT";
+          // Check if any submission has status 2 (is winner)
+          const hasWinnerSubmission = bounty.submissions?.some((submission: any) => submission.status === 2);
+          
+          if (hasWinnerSubmission) {
+            status = "ESCROW_INIT";
+          } else {
+            status = "BOUNTY_INIT";
+          }
         }
       }
       
@@ -91,19 +92,16 @@ export async function GET(req: NextRequest) {
       };
     });
 
-
-    // console.log(issuesWithStatus);
-    
     return NextResponse.json({
-      issues:issuesWithStatus,
-      repo:repo
+      issues: issuesWithStatus,
+      repo: repo
     });
   }
   catch(e){
     console.error(e);
 
     return NextResponse.json({
-      msg:"Internal server error",
-    },{status:500})
+      msg: "Internal server error",
+    }, { status: 500 })
   }
 }

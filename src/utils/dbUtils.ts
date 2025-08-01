@@ -1068,18 +1068,18 @@ export const setEscrowedBounty = async (bountyData: EscrowedBountyData) => {
     })
 
     if(bountyAlreadyExists){
-      return false
+      return bountyAlreadyExists;
     }
 
-    await db.bounty.create({
+    const bounty = await db.bounty.create({
       data:{
         ...bountyData,
-        status:0
+        status:1
       },
 
     })
 
-    return true
+    return bounty;
   }catch(e){
     await logToDiscord(`dbUtils/setEscrowedBounty: ${(e as any).message}`, "ERROR");
     console.error(e);
@@ -1087,6 +1087,25 @@ export const setEscrowedBounty = async (bountyData: EscrowedBountyData) => {
   }
 }
 
+export const updateEscrowedBounty = async(bountyId:number,bountyData:any)=>{
+  try{
+    const bounty = await db.bounty.update({
+      where:{
+        id:bountyId
+      },
+      data:{
+        ...bountyData
+      }
+      
+    })
+    return bounty;
+  }
+  catch(e){
+    await logToDiscord(`dbUtils/updateEscrowedBounty: ${(e as any).message}`, "ERROR");
+    console.error(e);
+    return false;
+  }
+}
 
 export const setEscrowedSubmission = async (submissionData:any)=>{
   try{

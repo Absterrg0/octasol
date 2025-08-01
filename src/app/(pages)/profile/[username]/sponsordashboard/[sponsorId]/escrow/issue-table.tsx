@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Calendar, Plus, Shield, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, FolderOpen } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { ISSUES_PER_PAGE } from "./index"
+import { ISSUES_PER_PAGE } from "../../../../../../../components/RepoInitializeForm/index"
 import {
   Pagination,
   PaginationContent,
