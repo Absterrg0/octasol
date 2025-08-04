@@ -23,6 +23,8 @@ export async function POST(req:NextRequest){
             repoName:repoName   
         })
 
+  
+
         return NextResponse.json({
             msg:"Bounty initialised successfully",
             id:bounty?.id
@@ -49,23 +51,24 @@ export async function PUT(req:NextRequest){
 
     try{
 
-        const {bountyId,pdaEscrow,status,githubId,blockchainTxSignature,payloadPut} = await req.json();
+        const {bountyId,pdaEscrow,status,githubId,blockchainTxSignature,payload} = await req.json();
         const installationId = await getInstallationId(BigInt(githubId));
 
+        console.log(bountyId,pdaEscrow,status,githubId,blockchainTxSignature,payload);
 
 
         const bounty = await updateEscrowedBounty(bountyId,{
             status:status,
             escrowPda:pdaEscrow,
             transactionHash:blockchainTxSignature,
-            bountyname:payloadPut.title,
-            price:payloadPut.price,
-            bountyDescription:payloadPut.description,
-            skills:payloadPut.skills,
-            time:payloadPut.deadline,
-            primaryContact:payloadPut.contact,
-            issueNumber:payloadPut.issueNumber,
-            repoName:payloadPut.repoName
+            bountyname:payload.title,
+            price:payload.price,
+            bountyDescription:payload.description,
+            skills:payload.skills,
+            time:payload.deadline,
+            primaryContact:payload.contact,
+            issueNumber:payload.issueNumber,
+            repoName:payload.repoName
         });
 
         if(bounty){
@@ -113,6 +116,7 @@ We're excited to see your solution. Happy coding!`;
         }
     }
     catch(e){
+        console.log(e);
         return NextResponse.json({
             msg:"Internal server error"
         },{

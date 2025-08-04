@@ -26,7 +26,16 @@ const Sidebar = ({ verified }: Props) => {
   const user = useSelector((state: any) => state.user);
   const pathname = usePathname();
 
-  const isActive = (linkPath: string) => pathname.includes(linkPath);
+  // Updated isActive function
+  const isActive = (linkPath: string, exact = false) => {
+    if (exact) {
+      return pathname === linkPath;
+    }
+    return pathname.startsWith(linkPath);
+  };
+
+  const userProfilePath = `/profile/${user?.login}`;
+  const sponsorDashboardPath = `/profile/${user?.login}/sponsordashboard`;
 
   return (
     <>
@@ -65,16 +74,16 @@ const Sidebar = ({ verified }: Props) => {
           <Tooltip>
             <TooltipTrigger>
               <Link
-                href={`/profile/${user?.login}`}
+                href={userProfilePath}
                 className="flex items-center gap-4 hover:text-[#45bd95]"
               >
                 <User
                   size={32}
-                  color={isActive("/profile/") ? "cyan" : "currentColor"}
+                  color={isActive(userProfilePath, true) ? "cyan" : "currentColor"}
                 />
                 <span
                   className={`hidden group-hover:inline-block transition-all duration-300 ease-in-out  ${
-                    isActive("/profile/") && "text-cyan-500"
+                    isActive(userProfilePath, true) && "text-cyan-500"
                   }`}
                 >
                   Profile
@@ -158,32 +167,6 @@ const Sidebar = ({ verified }: Props) => {
             </TooltipContent>
           </Tooltip>
 
-          {/* <Tooltip>
-              <TooltipTrigger>
-                <Link
-                  href="/listunescrowed"
-                  className="flex items-center gap-4 hover:text-[#45bd95]"
-                >
-                  <PictureInPicture
-                    size={32}
-                    color={
-                      isActive("/listunescrowed") ? "cyan" : "currentColor"
-                    }
-                  />
-                  <span
-                    className={`hidden group-hover:inline-block transition-all duration-300 ease-in-out  ${
-                      isActive("/listunescrowed") && "text-cyan-500"
-                    }`}
-                  >
-                    Unescrowed&nbsp;Bounty
-                  </span>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent className="bg-black">
-                <p>Unescrowed Bouty</p>
-              </TooltipContent>
-            </Tooltip> */}
-
           <Tooltip>
             <TooltipTrigger>
               <Link
@@ -205,6 +188,30 @@ const Sidebar = ({ verified }: Props) => {
             </TooltipTrigger>
             <TooltipContent className="bg-black">
               <p>Bounty</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger>
+              <Link
+                href={sponsorDashboardPath}
+                className="flex items-center gap-4 hover:text-[#45bd95]"
+              >
+                <BadgeDollarSign
+                  size={32}
+                  color={isActive(sponsorDashboardPath) ? "cyan" : "currentColor"}
+                />
+                <span
+                  className={`hidden group-hover:inline-block transition-all duration-300 ease-in-out  ${
+                    isActive(sponsorDashboardPath) && "text-cyan-500"
+                  }`}
+                >
+                  Sponsor Dashboard
+                </span>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent className="bg-black">
+              <p>Sponsor Dashboard</p>
             </TooltipContent>
           </Tooltip>
         </div>

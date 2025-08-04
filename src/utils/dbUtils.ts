@@ -1170,3 +1170,25 @@ export const getBountySubmissionsById = async(bountyId:number)=>{
     return false;
   }
 } 
+
+
+
+
+export const getWinnerBountySubmission = async (bountyId:number)=>{
+  try{
+    const submission = await db.submission.findFirst({
+      where:{
+        bountyId:bountyId,
+        status:2
+      },
+      include:{
+        bounty:true
+      }
+    })
+    return submission;
+  }catch(e){
+    await logToDiscord(`dbUtils/getWinnerBountySubmission: ${(e as any).message}`, "ERROR");
+    console.error(e);
+    return false;
+  }
+}

@@ -6,7 +6,7 @@ import {
   setUserbyInstallationId,
   getAccessToken 
 } from "@/lib/apiUtils";
-import { checkPRforLinkedIssue } from "./util";
+import { checkPRforLinkedIssue, releasePayment } from "./util";
 
 // Types for GitHub webhook events
 export interface GitHubWebhookEvent {
@@ -206,6 +206,8 @@ async function handlePullRequestEvent(event: GitHubWebhookEvent) {
     case "reopened":
       await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number,pull_request.user.id);
       break;
+    case "merged":
+      await releasePayment(repository.full_name,pull_request.number);
     default:
   }
 
@@ -213,25 +215,6 @@ async function handlePullRequestEvent(event: GitHubWebhookEvent) {
 
   const logLevel = action === 'closed' && pull_request.merged ? "INFO" : "INFO";
   await logToDiscord(eventMessage, logLevel);
-}
-
-/**
- * Handle push events
- */
-async function handlePushEvent(event: any) {
-  if (!event.repository || !event.pusher) {
-    return;
-  }
-
-  const { repository, pusher, commits = [] } = event;
-  
-  const eventMessage = `**Push Event**\n` +
-    `Repository: ${repository.full_name}\n` +
-    `Branch: ${event.ref?.replace('refs/heads/', '') || 'unknown'}\n` +
-    `Pusher: ${pusher.name}\n` +
-    `Commits: ${commits.length}`;
-
-  await logToDiscord(eventMessage, "INFO");
 }
 
 /**
@@ -285,10 +268,7 @@ export async function POST(req: NextRequest) {
         await handlePullRequestEvent(event);
         break;
         
-      case 'push':
-        await handlePushEvent(event);
-        break;
-        
+      
       case 'ping':
         await logToDiscord(
           `🏓 **Webhook Ping Received**\nZen: ${(event as any).zen || 'N/A'}`,

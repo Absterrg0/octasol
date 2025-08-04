@@ -21,6 +21,7 @@ import React from "react"
 import { IssueActionButtons,IssueStatusBadge } from "./issueStatusButton"
 import { BountyDialog } from "./BountyDialog"
 import EscrowDialog from "./EscrowDialog"
+import BountyLockedDialog from "./check-escrow"
 
 
 
@@ -154,9 +155,9 @@ export const IssuesCard = ({
                             ></EscrowDialog>
                           )}
                           {issue.status === "ESCROW_INIT" && (
-                            <Badge variant="default" className="text-emerald-600 bg-emerald-100 dark:text-emerald-400 dark:bg-emerald-900/50">
-                              Escrow Locked
-                            </Badge>
+                            <BountyLockedDialog
+                            issue={issue}
+                            ></BountyLockedDialog>
                           )}
                           
                         </TableCell>

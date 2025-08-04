@@ -36,6 +36,7 @@ import idl from "../../../../../../../../contract/idl/octasol_contract.json"
 import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token"
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token"
 import { Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js"
+import { createHash } from "crypto"
 
 // --- Form Schema Definition ---
 const bountyFormSchema = z.object({
@@ -45,7 +46,7 @@ const bountyFormSchema = z.object({
     .max(100, { message: "Title cannot exceed 100 characters." }),
   price: z.coerce
     .number({ required_error: "Reward amount is required." })
-    .min(5, { message: "Bounty must be at least $5." }),
+    .min(1, { message: "Bounty must be at least $1." }),
   description: z.string(),
   skills: z.array(z.string()).min(1, { message: "Please select at least one skill." }),
   deadline: z.date({ required_error: "A deadline is required." }),
@@ -91,6 +92,17 @@ export function BountyDialog({ issue }: BountyDialogProps) {
     },
   })
 
+  function generateBountyKeypair(bountyId: string): Keypair {
+    // Create a deterministic seed from bounty ID
+    const seedString = `octasol_bounty_${bountyId}`;
+    const hash = createHash('sha256').update(seedString).digest();
+    
+    // Take first 32 bytes for keypair seed
+    const keypairSeed = hash.slice(0, 32);
+    
+    return Keypair.fromSeed(keypairSeed);
+  }
+  
   const onSubmit = async (data: BountyFormData) => {
     if (!user || !selectedRepo || !issue) {
       dispatch(setError("User, repository, or issue data is missing."))
@@ -146,7 +158,9 @@ export function BountyDialog({ issue }: BountyDialogProps) {
   
       const maintainerTokenAccount = getAssociatedTokenAddressSync(USDCMint, wallet.publicKey, false, TOKEN_PROGRAM_ID)
   
-      const bountyAccountKp = Keypair.generate();
+      // CHANGED: Generate deterministic keypair instead of random
+      const bountyAccountKp = generateBountyKeypair(bountyId!);
+      
       const [escrowAuthorityPda] = PublicKey.findProgramAddressSync(
         [Buffer.from("escrow_auth"), bountyAccountKp.publicKey.toBuffer()],
         program.programId
@@ -177,7 +191,7 @@ export function BountyDialog({ issue }: BountyDialogProps) {
         rent: SYSVAR_RENT_PUBKEY.toString(),
       });
       console.log("Signers:", [bountyAccountKp.publicKey.toString()]);
-
+  
       let txSignature;
       try {
         txSignature = await program.methods
@@ -209,6 +223,7 @@ export function BountyDialog({ issue }: BountyDialogProps) {
         repoName: selectedRepo.full_name,
         status: 'UPDATING' // Start with CREATING status
       }
+      console.log(payloadPut);
       // Update bounty with PDA and change status to ACTIVE
       const response2 = await PUT("/create-bounty", {
         bountyId,
@@ -250,7 +265,7 @@ export function BountyDialog({ issue }: BountyDialogProps) {
           await PUT("/create-bounty", {
             bountyId,
             status: 7,
-            payloadPut:payloadPut            
+            payload:payloadPut            
             })
           console.log("Successfully marked bounty as failed")
         } catch (rollbackError) {
@@ -375,7 +390,7 @@ export function BountyDialog({ issue }: BountyDialogProps) {
                                       type="number"
                                       placeholder="500"
                                       {...field}
-                                      min={5}
+                                      min={1}
                                       step="any"
                                       className="h-16 pl-12 pr-4 text-lg font-semibold border-2 border-neutral-600 dark:border-neutral-600 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:border-green-400 dark:focus:ring-green-900/30 transition-all bg-neutral-900 text-neutral-100 placeholder:text-neutral-400"
                                     />

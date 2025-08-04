@@ -31,7 +31,6 @@ export async function GET(req:NextRequest){
             ...submission,
             githubId: Number(submission.githubId)
         }));
-        console.log(submissions);
         return NextResponse.json({submissions});
     }
     catch(e){

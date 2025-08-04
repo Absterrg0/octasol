@@ -29,7 +29,7 @@ import {
   Shield
 } from "lucide-react"
 import { useSelector } from "react-redux"
-import { GET } from "@/config/axios/requests"
+import { GET, POST } from "@/config/axios/requests"
 import idl from "../../../../../../../../contract/idl/octasol_contract.json"
 import type { OctasolContract } from "../../../../../../../../contract/types/octasol_contract"
 import { AnchorProvider, Program, web3, BN } from "@coral-xyz/anchor"
@@ -43,6 +43,7 @@ import {
 } from "@solana/spl-token"
 import { toast } from 'react-toastify';
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js"
+import { createHash } from "crypto"
 
 type Issue = {
   number: number
@@ -139,6 +140,12 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
     }
   }
 
+  function generateBountyKeypair(bountyId: string): Keypair {
+    const seedString = `octasol_bounty_${bountyId}`;
+    const hash = createHash('sha256').update(seedString).digest();
+    const keypairSeed = hash.slice(0, 32);
+    return Keypair.fromSeed(keypairSeed);
+  }
 
   const handleCreateEscrow = async (submission: Submission) => {
     if (!wallet.connected || !wallet.publicKey || !wallet.signTransaction) {
@@ -156,8 +163,6 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
       return
     }
 
-    setCreatingEscrow((prev) => ({ ...prev, [submission.id]: true }))
-
     try {
       // Create anchor wallet interface
       const anchorWallet = {
@@ -173,161 +178,38 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
       })
       const program = new Program(idl as OctasolContract, provider)
 
-      // Convert values to BN
-      const bountyIdBN = new BN(submission.id)
-      const amountBN = new BN(bounty?.price * 1000000 || 10000000) // Convert to proper decimals for USDC
 
 
-      // Get maintainer's token account
-      const maintainerTokenAccount = getAssociatedTokenAddressSync(
-        MINT_PUBKEY,
-        wallet.publicKey,
-        false,
-        TOKEN_PROGRAM_ID
-      );
-
-      const bountyAccountKp = Keypair.generate();
+      const bountyAccountKp = generateBountyKeypair(submission.bountyId.toString());
       
-      const [escrowAuthorityPda] = PublicKey.findProgramAddressSync(
-        [Buffer.from("escrow_auth"), bountyAccountKp.publicKey.toBuffer()],
-        program.programId
-      );
 
-    // Derive the address for the escrow's token account (an ATA owned by the PDA)
-    const escrowTokenAccount = await getAssociatedTokenAddress(
-        MINT_PUBKEY,
-        escrowAuthorityPda, // The owner is the PDA
-        true // IMPORTANT: This must be true for PDA-owned accounts
-    );
 
 
 
       console.log("=== ESCROW CREATION DEBUG ===")
       console.log("Program ID:", PROGRAM_ID.toString())
       console.log("Maintainer:", wallet.publicKey.toString())
-      console.log("Maintainer Token Account:", maintainerTokenAccount.toString())
       console.log("Contributor:", submission.walletAddress)
-      console.log("Amount:", amountBN.toString())
-      console.log("USDC Mint:", MINT_PUBKEY.toString())
 
-      // Check token balance BEFORE creating transaction
-      const { hasBalance, balance } = await checkTokenBalance(maintainerTokenAccount, amountBN)
+      const txHash = await program.methods.assignContributor().accounts({
+        maintainer:wallet.publicKey,
+        bounty:bountyAccountKp.publicKey,
+        contributor:submission.walletAddress,
+        systemProgram:SystemProgram.programId
+      }).rpc();    
       
-      if (!hasBalance) {
-        const requiredUSDC = (bounty?.price || 10) // Convert back to human readable
-        const currentUSDC = balance.toNumber() / 1000000 // Convert from micro USDC
-        
-        toast.error(
-          `Insufficient USDC balance!\n\n` +
-          `Required: ${requiredUSDC} USDC\n` +
-          `Current: ${currentUSDC} USDC\n\n` +
-          `Please add USDC to your wallet first.\n` +
-          `Devnet USDC Mint: ${MINT_PUBKEY.toString()}`
-        )
-        return
-      }
-
-      
-      
-       {
-        console.log("Creating new bounty...")
-
-        // Check if maintainer token account exists
-        const maintainerTokenAccountInfo = await connection.getAccountInfo(maintainerTokenAccount)
-        
-        // Build transaction step by step with proper error handling
-        const transaction = new web3.Transaction()
-        
-        // Create maintainer token account if it doesn't exist
-        if (!maintainerTokenAccountInfo) {
-          console.log("Creating maintainer token account...")
-          const createTokenAccountIx = createAssociatedTokenAccountInstruction(
-            wallet.publicKey, // payer
-            maintainerTokenAccount, // associated token account
-            wallet.publicKey, // owner
-            MINT_PUBKEY, // mint
-            TOKEN_PROGRAM_ID,
-            ASSOCIATED_TOKEN_PROGRAM_ID
-          )
-          transaction.add(createTokenAccountIx)
-        }
-
-        //Temp solution
-        const keeper = Keypair.generate();
-        // Create initialize bounty instruction with explicit account mapping
-        const initBountyIx = await program.methods
-          .initializeBounty(bountyIdBN, amountBN)
-          .accounts({
-            maintainer: wallet.publicKey,
-            bounty: bountyAccountKp.publicKey,
-            maintainerTokenAccount: maintainerTokenAccount,
-            escrowAuthority: escrowAuthorityPda,
-            keeper: keeper.publicKey,
-            escrowTokenAccount: escrowTokenAccount,
-            mint: MINT_PUBKEY,
-            systemProgram: SystemProgram.programId,
-            tokenProgram: TOKEN_PROGRAM_ID,
-            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            rent: web3.SYSVAR_RENT_PUBKEY,
-          })
-          .instruction()
-
-        transaction.add(initBountyIx)
-
-        // Set recent blockhash and fee payer
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
-        transaction.recentBlockhash = blockhash
-        transaction.feePayer = wallet.publicKey
-
-        // Simulate transaction first with better error handling
-        console.log("Simulating transaction...")
-        try {
-          const simulation = await connection.simulateTransaction(transaction)
-          
-          if (simulation.value.err) {
-            console.error("Simulation failed:", simulation.value.err)
-            console.error("Logs:", simulation.value.logs)
-            throw new Error(`Transaction simulation failed: ${JSON.stringify(simulation.value.err)}`)
+      if(txHash){
+         await POST(
+          `/updateSubmissionStatus`,
+          {
+            submissionId:submission.id,
+            installationId:user.installationId
           }
-
-          console.log("Simulation successful!")
-          console.log("Compute units used:", simulation.value.unitsConsumed)
-          console.log("Logs:", simulation.value.logs)
-        } catch (simError) {
-          console.error("Simulation error:", simError)
-          throw new Error(`Simulation failed: ${simError instanceof Error ? simError.message : String(simError)}`)
-        }
-
-        // Sign and send transaction
-        console.log("Signing transaction...")
-        const signedTransaction = await wallet.signTransaction!(transaction)
-        
-        console.log("Sending transaction...")
-        const txHash = await connection.sendRawTransaction(signedTransaction.serialize(), {
-          skipPreflight: false, // Enable preflight for additional validation
-          preflightCommitment: 'confirmed',
-          maxRetries: 3,
-        })
-
-        console.log("Transaction sent, waiting for confirmation...")
-        
-        // Wait for confirmation with timeout
-        const confirmation = await connection.confirmTransaction({
-          signature: txHash,
-          blockhash,
-          lastValidBlockHeight
-        }, 'confirmed')
-
-        if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
-        }
-
-        console.log("Transaction confirmed:", txHash)
-        toast.success(`Escrow created successfully! TX: ${txHash.slice(0, 8)}...`)
-        
-        // Refresh submissions
-        await fetchSubmissions()
-      } 
+        )
+        toast.success("Contributor assigned successfully")
+      }
+      
+    
     } catch (error) {
       console.error("Error creating escrow:", error)
       
@@ -351,27 +233,7 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
     }
   }
 
-  const fetchUsdcBalance = async () => {
-    if (!wallet.connected || !wallet.publicKey) {
-      setUsdcBalance(null)
-      return
-    }
 
-    try {
-      const tokenAccount = getAssociatedTokenAddressSync(
-        MINT_PUBKEY,
-        wallet.publicKey,
-        false,
-        TOKEN_PROGRAM_ID
-      )
-
-      const { balance } = await checkTokenBalance(tokenAccount, new BN(0))
-      setUsdcBalance(balance.toNumber() / 1000000) // Convert from micro USDC
-    } catch (error) {
-      console.error("Error fetching USDC balance:", error)
-      setUsdcBalance(0)
-    }
-  }
 
   const fetchSubmissions = async () => {
     if (!selectedRepo?.full_name) return
@@ -396,7 +258,6 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen && submissions.length === 0) {
       fetchSubmissions()
-      fetchUsdcBalance()
     }
   }
 
@@ -421,7 +282,7 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
           <GitPullRequest className="w-4 h-4" />
           View Submissions
           {submissions.length > 0 && (
-            <Badge variant="secondary" className="ml-1">
+            <Badge variant="default" className="ml-1">
               {submissions.length}
             </Badge>
           )}
@@ -485,12 +346,12 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
                 {bounty.skills && bounty.skills.length > 0 && (
                   <div className="flex gap-1 mt-2">
                     {bounty.skills.slice(0, 3).map((skill: string, index: number) => (
-                      <Badge key={index} variant="outline" className="text-xs">
+                      <Badge key={index} variant="default" className="text-xs">
                         {skill}
                       </Badge>
                     ))}
                     {bounty.skills.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="default" className="text-xs">
                         +{bounty.skills.length - 3}
                       </Badge>
                     )}
@@ -542,7 +403,7 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">Submission #{index + 1}</span>
-                                <Badge variant={statusInfo.variant} className="gap-1">
+                                <Badge variant="default" className="gap-1">
                                   <StatusIcon className="w-3 h-3" />
                                   {statusInfo.label}
                                 </Badge>
@@ -612,11 +473,10 @@ export default function EscrowDialog({ issue }: EscrowDialogProps) {
                           <Button
                             size="sm"
                             onClick={() => handleCreateEscrow(submission)}
-                            disabled={creatingEscrow[submission.id] || !submission.walletAddress}
                             className="bg-green-600 hover:bg-green-700 gap-2"
                           >
                             <Lock className="w-3 h-3" />
-                            {creatingEscrow[submission.id] ? "Creating Escrow..." : "Lock Escrow"}
+                            Lock Escrow
                           </Button>
                         </div>
                       </div>
