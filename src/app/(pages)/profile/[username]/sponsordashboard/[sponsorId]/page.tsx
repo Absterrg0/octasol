@@ -76,7 +76,7 @@ const SponsorDashboard = (props: Props) => {
       const response = await GET("/sponsor/dashboard", {
         Authorization: `Bearer ${user.accessToken}`,
       });
-      console.log(response);
+
       if (response) {
         setSponsorData(response.data);
       }
@@ -115,7 +115,7 @@ const SponsorDashboard = (props: Props) => {
 
   const handleUpdateSponsor = async () => {
     try {
-      console.log(formData);
+
       const response = await POST(
         "/sponsor/update",
         {
@@ -131,7 +131,6 @@ const SponsorDashboard = (props: Props) => {
           Authorization: `Bearer ${user.accessToken}`,
         }
       );
-      console.log(response);
       setIsUpdateDialogOpen(false);
     } catch (error) {
       console.error(error);

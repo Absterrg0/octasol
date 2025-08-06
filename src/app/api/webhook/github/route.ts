@@ -113,8 +113,6 @@ async function logWebhookEvent(
     "INFO"
   );
 
-  // Also log to console for development
-  console.log("GitHub Webhook Event:", JSON.stringify(logData, null, 2));
 }
 
 /**

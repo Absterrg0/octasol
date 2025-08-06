@@ -135,8 +135,7 @@ export default function BentoGridDemo() {
         Authorization: `Bearer ${user.accessToken}`,
       });
 
-      console.log(response);
-
+      
       if (response[0]?.user?.githubUsername === name)
         setUserSubmissions(response);
     } catch (error) {

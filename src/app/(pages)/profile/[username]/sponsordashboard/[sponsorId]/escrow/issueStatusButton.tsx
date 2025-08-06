@@ -65,10 +65,6 @@ export function IssueActionButtons({
   }
 
   return <div className="flex justify-end">{renderButtons()}
-     {/* Bounty Dialog */}
-     <BountyDialog
-        issue={issue}
-      />
   </div>
 }
 

@@ -179,7 +179,8 @@ export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
       const bountyAccountExists = await checkAccountExists(connection, bountyAccountKp.publicKey);
 
       if (bountyAccountExists) {
-        console.log(`Bounty account ${bountyAccountKp.publicKey.toString()} already exists on-chain. Skipping initialization.`);
+        toast.error("Bounty already exists on-chain. Please contact support.");
+        return;
       } else {
         // Execute blockchain transaction only if the account doesn't exist
         try {
@@ -200,12 +201,11 @@ export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
             })
             .signers([bountyAccountKp])
             .rpc();
-          console.log("Blockchain transaction successful. txSignature:", blockchainTxSignature);
+        
 
           // Wait for transaction confirmation
           await connection.confirmTransaction(blockchainTxSignature, 'confirmed');
-          console.log("Transaction confirmed:", blockchainTxSignature);
-
+        
         } catch (err) {
           console.error("Error during blockchain transaction:", err);
           throw err;
@@ -250,7 +250,6 @@ export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
             bountyId,
             status: 7, // FAILED
           });
-          console.log("Successfully marked bounty as failed");
         } catch (rollbackError) {
           console.error("Failed to mark bounty as failed:", rollbackError);
         }

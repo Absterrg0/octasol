@@ -32,7 +32,7 @@ export async function POST(req:NextRequest){
         },{status:200})
     }
     catch(e){
-        console.log(e);
+        console.error(e);
         logToDiscord(`create-bounty/route: ${e}`, "ERROR")  
         return NextResponse.json({
             msg:"Internal server error",
@@ -54,7 +54,7 @@ export async function PUT(req:NextRequest){
         const {bountyId,pdaEscrow,status,githubId,blockchainTxSignature,payload} = await req.json();
         const installationId = await getInstallationId(BigInt(githubId));
 
-        console.log(bountyId,pdaEscrow,status,githubId,blockchainTxSignature,payload);
+
 
 
         const bounty = await updateEscrowedBounty(bountyId,{
@@ -116,7 +116,7 @@ We're excited to see your solution. Happy coding!`;
         }
     }
     catch(e){
-        console.log(e);
+        console.error(e);
         return NextResponse.json({
             msg:"Internal server error"
         },{

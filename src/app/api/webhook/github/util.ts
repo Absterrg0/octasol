@@ -36,8 +36,6 @@ export async function checkPRforLinkedIssue(body: string, repoName: string, inst
         try {
           publicKey = new PublicKey(walletAddress);
         } catch (error) {
-          // Invalid wallet address - not on Solana curve
-          console.log('Invalid Solana wallet address:', walletAddress);
           throw new Error(`Not a valid Solana public key: ${walletAddress}`);
         }
     }
@@ -119,7 +117,6 @@ const connection = new Connection(
       });
   
       if (!winnerSubmission) {
-        console.log(`No winner submission found for PR ${prNumber} in repo ${repoName}`);
         return { success: false, error: 'No winner submission found' };
       }
   
@@ -174,7 +171,6 @@ const connection = new Connection(
         
         const createATATx = new Transaction().add(createATAInstruction);
         await provider.sendAndConfirm(createATATx);
-        console.log('Created contributor token account');
       }
   
       // Execute the smart contract transaction
@@ -240,7 +236,6 @@ Thank you for contributing! 🚀
       });
 
   
-      console.log(`Bounty payment released successfully! Transaction signature: ${txSignature}`);
       return { success: true, txSignature };
   
     } catch (error) {

@@ -242,7 +242,6 @@ export default function EscrowDialog({ issue,isOpen,onOpenChange }: EscrowDialog
       const response = await GET(
         `/getBountySubmission?issueNumber=${issue.number.toString()}&repoName=${selectedRepo.full_name}`,
       )
-      console.log(response.submissions)
       setSubmissions(response.submissions || [])
       if (response && response.submissions && response.submissions.length > 0 && response.submissions[0].bounty) {
         setBounty(response.submissions[0].bounty)

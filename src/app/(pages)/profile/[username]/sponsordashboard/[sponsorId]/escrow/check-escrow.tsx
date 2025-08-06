@@ -120,7 +120,7 @@ export default function BountyLockedDialog({ issue }: BountyLockedDialogProps) {
     setLoading(true);
     try {
         const response = await GET(`/getWinnerSubmission?issueNumber=${issue.number.toString()}&repoName=${selectedRepo.full_name}`);
-        console.log(response);
+   
         
         // Check for success and set the winning submission data
         if (response) {
@@ -206,7 +206,6 @@ function generateBountyKeypair(bountyId: string): Keypair {
         maintainerTokenAccount: maintainerTokenAccount,
       }).rpc();
 
-      console.log("Transaction successful:", txHash);
       transactionSuccess = true;
       
       toast.success("Bounty cancelled successfully on blockchain!");
