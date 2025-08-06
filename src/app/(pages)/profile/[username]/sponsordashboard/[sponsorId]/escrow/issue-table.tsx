@@ -32,6 +32,7 @@ export const IssuesCard = ({
   }: any) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+    const [dialogOpen, setDialogOpen] = useState(false);
     
     const totalIssues = issues.length;
     const totalPages = Math.ceil(totalIssues / ISSUES_PER_PAGE);
@@ -145,13 +146,15 @@ export const IssuesCard = ({
                             {formatDate(issue.created_at)}
                           </div>
                         </TableCell>
-                        <TableCell className="w-[180px] align-middle text-center">
+                        <TableCell className="w-[180px] align-middle flex items-center text-center">
                           {issue.status === "NORMAL" && (
-                            <BountyDialog issue ={issue}></BountyDialog>
+                            <BountyDialog issue ={issue} isOpen={dialogOpen} onOpenChange={setDialogOpen}></BountyDialog>
                           )}
                           {issue.status === "BOUNTY_INIT" && (
                             <EscrowDialog
                             issue = {issue}
+                            isOpen={dialogOpen}
+                            onOpenChange={setDialogOpen}
                             ></EscrowDialog>
                           )}
                           {issue.status === "ESCROW_INIT" && (

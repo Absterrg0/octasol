@@ -3,12 +3,14 @@ import { getBountiesByRepoName, getInstallationId, getWinnerBountySubmission, se
 import axios from "axios";
 import { Connection, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import { db } from "@/lib/db";
-import { AnchorProvider, Program, Wallet } from "@coral-xyz/anchor";
+import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import { OctasolContract } from "../../../../../contract/types/octasol_contract";
 import idl from "../../../../../contract/idl/octasol_contract.json";
 import { BN } from "@coral-xyz/anchor";
 import { createHash } from "crypto";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet' 
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export async function checkPRforLinkedIssue(body: string, repoName: string, installationId: number, pullRequestNumber: number, githubId: number) {
   
@@ -91,22 +93,22 @@ This will allow us to transfer the funds directly to your wallet once the work i
 
 
 
-const SERVER_WALLET_SECRET_KEY = process.env.SERVER_WALLET_SECRET_KEY;
+
+export async function releasePayment(repoName: string, prNumber: number,installationId:number) {
+    try {
+        const SERVER_WALLET_SECRET_KEY = process.env.ADMIN_PRIVATE_KEY;
 if (!SERVER_WALLET_SECRET_KEY) {
   throw new Error('SERVER_WALLET_SECRET_KEY environment variable is not set.');
 }
-
-const privateKey = Buffer.from(JSON.parse(SERVER_WALLET_SECRET_KEY));
-const serverKeypair = Keypair.fromSecretKey(privateKey);
-const serverWallet = new Wallet(serverKeypair);
+const privateKeyBuffer = bs58.decode(SERVER_WALLET_SECRET_KEY);
+const serverKeypair = Keypair.fromSecretKey(privateKeyBuffer);
+const serverWallet = new NodeWallet(serverKeypair);
 
 // Create the connection object outside of a React hook
 const connection = new Connection(
   process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com',
   'confirmed'
 );
-export async function releasePayment(repoName: string, prNumber: number) {
-    try {
       const winnerSubmission = await db.submission.findFirst({
         where: {
           githubPRNumber: prNumber,
@@ -183,7 +185,7 @@ export async function releasePayment(repoName: string, prNumber: number) {
           escrowAuthority: escrowAuthorityPda,
           maintainer: serverWallet.publicKey,
           contributor: winnerAccount,
-          contributorTokenAcocunt: contributorTokenAccount, // Fix typo: should be contributorTokenAccount
+          contributorTokenAccount: contributorTokenAccount, // Fix typo: should be contributorTokenAccount
           escrowTokenAccount: escrowTokenAccount,
           systemProgram: SystemProgram.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
@@ -211,6 +213,32 @@ export async function releasePayment(repoName: string, prNumber: number) {
           data: { status: 3 }
         });
       });
+
+      const accessToken = await getAccessToken(installationId);
+      const commentBody = `## Pull Request Merged & Bounty Released!
+
+Congratulations! Your pull request has been **successfully merged**, and the bounty for this issue has been released.
+
+**Funds have been sent to your Solana wallet address:** \`${winnerSubmission.walletAddress}\`
+
+---
+
+This bounty was managed and paid out using [Octasol](https://octasol.io) — the decentralized platform for open-source bounties.
+
+If you haven't already, **sign up on [Octasol.io](https://octasol.io)** with your GitHub account and connect your crypto wallet for more bounties.
+
+Thank you for contributing! 🚀
+`;
+
+      const response = await axios.post(`https://api.github.com/repos/${repoName}/issues/${winnerSubmission.githubPRNumber}/comments`, {
+          body: commentBody
+      }, {
+          headers: {
+              Authorization: `token ${accessToken}`,
+              Accept: "application/vnd.github.v3+json",
+          },
+      });
+
   
       console.log(`Bounty payment released successfully! Transaction signature: ${txSignature}`);
       return { success: true, txSignature };

@@ -206,8 +206,14 @@ async function handlePullRequestEvent(event: GitHubWebhookEvent) {
     case "reopened":
       await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number,pull_request.user.id);
       break;
-    case "merged":
-      await releasePayment(repository.full_name,pull_request.number);
+    case "closed":
+      if(pull_request.merged === true){
+        await releasePayment(repository.full_name,pull_request.number,installation?.id);
+      }
+      else{
+        console.log("PR Closed successfully");
+      }
+      break;
     default:
   }
 
