@@ -23,8 +23,6 @@ import { BountyDialog } from "./BountyDialog"
 import EscrowDialog from "./EscrowDialog"
 import BountyLockedDialog from "./check-escrow"
 
-
-
 export const IssuesCard = ({ 
     selectedRepo, 
     issues, 
@@ -32,7 +30,7 @@ export const IssuesCard = ({
   }: any) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
-    const [dialogOpen, setDialogOpen] = useState(false);
+    const [dialogStates, setDialogStates] = useState<{ [key: number]: boolean }>({});
     
     const totalIssues = issues.length;
     const totalPages = Math.ceil(totalIssues / ISSUES_PER_PAGE);
@@ -44,7 +42,12 @@ export const IssuesCard = ({
     const handlePrevPage = () => setCurrentPage((prev: number) => Math.max(1, prev - 1));
     const handleNextPage = () => setCurrentPage((prev: number) => Math.min(totalPages, prev + 1));
     
- 
+    const handleDialogOpenChange = (issueId: number, open: boolean) => {
+      setDialogStates(prev => ({
+        ...prev,
+        [issueId]: open
+      }));
+    };
     
     const formatDate = (dateString: string) =>
       new Date(dateString).toLocaleDateString("en-US", {
@@ -148,19 +151,24 @@ export const IssuesCard = ({
                         </TableCell>
                         <TableCell className="w-[180px] align-middle flex items-center text-center">
                           {issue.status === "NORMAL" && (
-                            <BountyDialog issue ={issue} isOpen={dialogOpen} onOpenChange={setDialogOpen}></BountyDialog>
+                            <BountyDialog 
+                              issue={issue} 
+                              isOpen={dialogStates[issue.id] || false} 
+                              onOpenChange={(open) => handleDialogOpenChange(issue.id, open)} 
+                              fetchIssues={onRefresh}
+                            />
                           )}
                           {issue.status === "BOUNTY_INIT" && (
                             <EscrowDialog
-                            issue = {issue}
-                            isOpen={dialogOpen}
-                            onOpenChange={setDialogOpen}
-                            ></EscrowDialog>
+                              issue={issue}
+                              isOpen={dialogStates[issue.id] || false}
+                              onOpenChange={(open) => handleDialogOpenChange(issue.id, open)}
+                            />
                           )}
                           {issue.status === "ESCROW_INIT" && (
                             <BountyLockedDialog
-                            issue={issue}
-                            ></BountyLockedDialog>
+                              issue={issue}
+                            />
                           )}
                           
                         </TableCell>

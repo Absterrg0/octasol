@@ -56,23 +56,18 @@ export async function checkPRforLinkedIssue(body: string, repoName: string, inst
             });
 
             const accessToken = await getAccessToken(installationId);
-            const commentBody = `## Submission Received!
+            const commentBody = `## Submission Confirmed!
 
-Your submission is now pending review for the bounty. If it's accepted, the funds will be transferred to an escrow account and released upon completion.
+We've received your submission and it's now awaiting review for the bounty. If approved, the funds will be moved to an escrow account and released after completion.
 
-${walletAddress ? `**Wallet Address:** \`${walletAddress}\`` : '**Note:** No wallet address provided. Please add your Solana wallet address to your PR description for automatic payout.'}
+${walletAddress ? `**Wallet Address:** \`${walletAddress}\`` : '**Note:** No wallet address detected. Please close this current PR and create a new one with a wallet address provided.'}
 
 ---
-### Next Steps for Payout
+### How to Receive Your Payout
 
-To ensure a smooth and automatic payout, please complete these one-time steps:
-
-1.  **Sign up on [Octasol.io](https://octasol.io)** with your GitHub account.
-2.  **Connect your crypto wallet** in your Octasol.io profile.
-
-This will allow us to transfer the funds directly to your wallet once the work is approved.
+Once your work is approved and the PR is merged, the funds will be released to the wallet address that you have provided in the PR.
 `;
-
+            
             const response = await axios.post(`https://api.github.com/repos/${repoName}/issues/${pullRequestNumber}/comments`, {
                 body: commentBody
             }, {
@@ -246,7 +241,7 @@ Thank you for contributing! 🚀
 
   function generateBountyKeypair(bountyId: string): Keypair {
     // Create a deterministic seed from bounty ID
-    const seedString = `octasol_bounty_${bountyId}`;
+    const seedString = `octasol_${bountyId}`;
     const hash = createHash('sha256').update(seedString).digest();
     
     // Take first 32 bytes for keypair seed

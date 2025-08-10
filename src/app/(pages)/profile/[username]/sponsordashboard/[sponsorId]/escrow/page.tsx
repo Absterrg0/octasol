@@ -73,7 +73,7 @@ export default function EscrowPage() {
           onRefresh={() => fetchIssues(installationId)}
         />
       </div>
-      {/* Right: Repo Details Card */}
+      {/* Right: Repo Details Card */}  
       <div className="w-full px-4 lg:w-[350px] flex-shrink-0">
         <div className="sticky top-8 space-y-6">
           {selectedRepo && (

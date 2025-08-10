@@ -80,6 +80,7 @@ export default function RepoInitializeForm() {
     try {
       dispatch(clearError())
       const response = await axios.get(`/api/github-repos?installationId=${id}`)
+      console.log(response);
       dispatch(setRepositories(response.data.repositories || []))
     } catch (error) {
       dispatch(setError((error as any).message))
@@ -108,7 +109,10 @@ export default function RepoInitializeForm() {
     if (user && !installationId) {
       dispatchInstallationId()
     }
-  }, [installationId, user, dispatch])
+    else if(installationId){
+      fetchRepositories(installationId)
+    }
+  }, [installationId, user])
 
   const filteredRepositories = repositories.filter((repo: any) =>
     repo.name.toLowerCase().includes((searchTerm || "").toLowerCase()),

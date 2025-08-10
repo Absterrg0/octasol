@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils"
 
 // Types
 import type { Issue } from "@/app/Redux/Features/git/issues"
-import { extractTextFromHTML } from "../../../../../../../components/Bounty"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
 import {toast} from 'react-toastify';
 import { AnchorProvider, BN, Program } from "@coral-xyz/anchor"
@@ -73,9 +72,10 @@ interface BountyDialogProps {
   issue: Issue | null;
   isOpen: boolean;
   onOpenChange:(isOpen:boolean) =>void;
+  fetchIssues: () => void;
 }
 
-export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
+export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDialogProps) {
   const dispatch = useDispatch()
   const user = useSelector((state: any) => state.user)
   const selectedRepo = useSelector((state:any)=>state.selectedRepo);
@@ -103,7 +103,7 @@ export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
   
   // Your deterministic keypair generation function
   function generateBountyKeypair(bountyId: string): Keypair {
-    const seedString = `octasol_bounty_${bountyId}`;
+    const seedString = `octasol_${bountyId}`;
     const hash = createHash('sha256').update(seedString).digest();
     const keypairSeed = hash.slice(0, 32);
     return Keypair.fromSeed(keypairSeed);
@@ -239,6 +239,8 @@ export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
       // Success!
       dispatch(clearError());
       toast.success("Bounty created successfully!");
+      onOpenChange(false)
+      fetchIssues();
   
     } catch (error) {
       console.error("Error creating bounty:", error);
@@ -264,8 +266,8 @@ export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
 
 
   return (
-    <Dialog>
-      <DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
         <Button className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 hover:border-slate-500 text-slate-100 rounded-xl transition-all ">
           <Plus size={16} />
           Create Bounty
@@ -284,9 +286,6 @@ export function BountyDialog({ issue,isOpen,onOpenChange }: BountyDialogProps) {
                   <GitBranch className="w-4 h-4" />
                   <span className="font-medium">{selectedRepo?.name}</span>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-emerald-500" />
               </div>
             </div>
             <div>

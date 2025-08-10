@@ -78,18 +78,23 @@ export async function PUT(req:NextRequest){
     
                 // Bounty comment with contributor instructions
                 const commentBody =
-                `##  **Bounty** Alert! 💰       
-### A **$${bounty.price}** bounty is now available for solving this issue, powered by **[Octasol.io](https://octasol.io)**.
-            
+                `## 🚨 Bounty Opportunity! 💰
+
+A **$${bounty.price}** bounty is up for grabs on this issue, brought to you by **[Octasol.io](https://octasol.io)**.
+
 ---
-### How to Get Started
-            
-1.  **Open a Draft PR:** Fork the repo and open a draft pull request to claim this issue. This is your workspace.
-2.  **Link Your PR:** In the PR description, include the line \`Closes #${bounty.issueNumber}\` to link it to this issue.
-3.  **Outline Your Plan:** Briefly describe your proposed solution in the PR description so we can provide early feedback.
-4.  **Code & Submit:** Push your code to the PR. When you're ready, mark it "Ready for review".            
+
+### How to Participate
+
+1. **Claim the Issue:** Open a draft PR(Pull Request) on this issue.
+2. **Reference the Issue:** Add \`Closes #${bounty.issueNumber}\` in your PR description to automatically link your PR to this issue(IF NOT LINKED, SUBMISSION WILL BE REJECTED).
+3. **Share Your Approach:** Briefly outline your proposed solution in the PR description for early feedback from maintainers.
+4. **Share the wallet address:** Share your wallet address in the PR description as Address: <wallet_address>
+5. **Wait for result:** Wait for the maintainer to review your approach. If accepted, you can start to make the changes for the issue and work on the bounty.
+
 ---
-We're excited to see your solution. Happy coding!`;
+
+We look forward to your contribution. Good luck and happy coding!`;
     
                 await axios.post(`https://api.github.com/repos/${bounty.repoName}/issues/${bounty.issueNumber}/comments`, {
                     body: commentBody

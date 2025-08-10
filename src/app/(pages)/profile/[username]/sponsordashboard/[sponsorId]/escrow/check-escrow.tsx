@@ -141,7 +141,7 @@ export default function BountyLockedDialog({ issue }: BountyLockedDialogProps) {
 
 
 function generateBountyKeypair(bountyId: string): Keypair {
-  const seedString = `octasol_bounty_${bountyId}`;
+  const seedString = `octasol_${bountyId}`;
   const hash = createHash('sha256').update(seedString).digest();
   const keypairSeed = hash.slice(0, 32);
   return Keypair.fromSeed(keypairSeed);
