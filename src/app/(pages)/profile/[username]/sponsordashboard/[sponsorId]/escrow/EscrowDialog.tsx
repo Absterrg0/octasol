@@ -189,7 +189,7 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
       const updateStatusResponse = await POST(`/updateSubmissionStatus`, {
         submissionId: submission.id,
         githubId: user.githubId,
-      });
+    });
   
       if (updateStatusResponse) {
         toast.success('Contributor assigned successfully!');

@@ -5,6 +5,8 @@ import {
   CopyPlus,
   HomeIcon,
   User,
+  ListChecks,
+  Briefcase,
 } from "lucide-react";
 import { IconChartHistogram } from "@tabler/icons-react";
 import Link from "next/link";
@@ -36,6 +38,7 @@ const Sidebar = ({ verified }: Props) => {
 
   const userProfilePath = `/profile/${user?.login}`;
   const sponsorDashboardPath = `/profile/${user?.login}/sponsordashboard`;
+  const userSubmissionsPath = `/profile/${user?.login}/submissions`;
 
   return (
     <>
@@ -92,6 +95,30 @@ const Sidebar = ({ verified }: Props) => {
             </TooltipTrigger>
             <TooltipContent className="bg-black">
               <p>Profile</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger>
+              <Link
+                href={userSubmissionsPath}
+                className="flex items-center gap-4 hover:text-[#45bd95]"
+              >
+                <ListChecks
+                  size={32}
+                  color={isActive(userSubmissionsPath) ? "cyan" : "currentColor"}
+                />
+                <span
+                  className={`hidden group-hover:inline-block transition-all duration-300 ease-in-out  ${
+                    isActive(userSubmissionsPath) && "text-cyan-500"
+                  }`}
+                >
+                  Submissions
+                </span>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent className="bg-black">
+              <p>Submissions</p>
             </TooltipContent>
           </Tooltip>
 
@@ -197,7 +224,7 @@ const Sidebar = ({ verified }: Props) => {
                 href={sponsorDashboardPath}
                 className="flex items-center gap-4 hover:text-[#45bd95]"
               >
-                <BadgeDollarSign
+                <Briefcase
                   size={32}
                   color={isActive(sponsorDashboardPath) ? "cyan" : "currentColor"}
                 />

@@ -78,6 +78,8 @@ async function logWebhookEvent(
   event: GitHubWebhookEvent, 
   installationInfo: any
 ) {
+
+  console.log(event);
   const logData = {
     eventType,
     action: event.action,
@@ -122,6 +124,7 @@ async function handleInstallationEvent(event: GitHubWebhookEvent) {
   if (!event.installation || !event.action) {
     return;
   }
+
 
   const { installation, action } = event;
   

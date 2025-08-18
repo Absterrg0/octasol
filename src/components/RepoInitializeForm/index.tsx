@@ -63,15 +63,22 @@ export default function RepoInitializeForm() {
 
   const dispatchInstallationId = async (forceRefresh = false) => {
     if (user) {
-      const { response, error } = await POST(githubInstallations, { githubId: user?.githubId })
-      if (response?.data?.installationId) {
-        const id = response.data.installationId
-        dispatch(setInstallationId(id))
-        localStorage.setItem("installationId", id)
-        await fetchRepositories(id)
-      } else {
-        console.error(error)
-        dispatch(setError("Failed to fetch GitHub installation."))
+      // If force refresh or no installation ID exists, fetch fresh data
+      if (forceRefresh || !installationId) {
+        const { response, error } = await POST(githubInstallations, { githubId: user?.githubId })
+        if (response?.data?.installationId) {
+          const id = response.data.installationId
+          dispatch(setInstallationId(id))
+          localStorage.setItem("installationId", id)
+          await fetchRepositories(id)
+        } else {
+          console.error(error)
+          dispatch(setError("Failed to fetch GitHub installation."))
+        }
+      }
+      // If installation ID exists and not forcing refresh, just fetch repos
+      else if (installationId) {
+        await fetchRepositories(installationId)
       }
     }
   }
@@ -87,7 +94,6 @@ export default function RepoInitializeForm() {
     }
   }
 
-
   const handleRepoSelect = async (repo: Repository, id: bigint) => {
     await POST(`/setSponsorFromGithub`, { userId: id, repo })
     router.push(`/profile/${user?.name}/sponsordashboard`)
@@ -102,7 +108,48 @@ export default function RepoInitializeForm() {
       sameSite: "strict",
     })
     const installUrl = `https://github.com/apps/osol-feat-app-dev/installations/new?state=${state}&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`
-    router.push(installUrl)
+    
+    // Open in popup window
+    const popup = window.open(
+      installUrl,
+      'github-install',
+      'width=600,height=700,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no'
+    )
+    
+    // Handle popup blocked scenario
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      // Fallback to regular navigation if popup is blocked
+      router.push(installUrl)
+      return
+    }
+
+    // Method 1: Poll for popup closure
+    const checkClosed = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(checkClosed)
+        // Refetch repositories after popup closes
+        setTimeout(() => {
+          dispatchInstallationId(true) // Force refresh
+        }, 1000) // Small delay to ensure GitHub processes the installation
+      }
+    }, 1000)
+
+    // Method 2: Listen for window focus (backup method)
+    const handleWindowFocus = () => {
+      if (popup.closed) {
+        window.removeEventListener('focus', handleWindowFocus)
+        setTimeout(() => {
+          dispatchInstallationId(true)
+        }, 1000)
+      }
+    }
+    window.addEventListener('focus', handleWindowFocus)
+
+    // Cleanup after 5 minutes to prevent memory leaks
+    setTimeout(() => {
+      clearInterval(checkClosed)
+      window.removeEventListener('focus', handleWindowFocus)
+    }, 300000)
   }
 
   useEffect(() => {
