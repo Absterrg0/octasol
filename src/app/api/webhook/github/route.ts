@@ -6,7 +6,8 @@ import {
   setUserbyInstallationId,
   getAccessToken 
 } from "@/lib/apiUtils";
-import { checkPRforLinkedIssue, releasePayment } from "./util";
+import { checkPRforLinkedIssue, conflictedBounty, releasePayment, handleDifferentPRMerged, extractIssueNumber, handleIssueClosed } from "./util";
+import { db } from "@/lib/db";
 
 // Types for GitHub webhook events
 export interface GitHubWebhookEvent {
@@ -51,6 +52,25 @@ export interface GitHubWebhookEvent {
   };
 }
 
+/**
+ * Verify GitHub webhook signature
+ */
+function verifyWebhookSignature(payload: string, signature: string): boolean {
+  const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error('GITHUB_WEBHOOK_SECRET not configured');
+    return false;
+  }
+
+  const expectedSignature = `sha256=${createHmac('sha256', webhookSecret)
+    .update(payload)
+    .digest('hex')}`;
+
+  return timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+}
 
 /**
  * Get installation information from webhook payload
@@ -79,7 +99,6 @@ async function logWebhookEvent(
   installationInfo: any
 ) {
 
-  console.log(event);
   const logData = {
     eventType,
     action: event.action,
@@ -166,11 +185,11 @@ async function handleInstallationEvent(event: GitHubWebhookEvent) {
  * Handle issue events
  */
 async function handleIssueEvent(event: GitHubWebhookEvent) {
-  if (!event.issue || !event.action || !event.repository) {
+  if (!event.issue || !event.action || !event.repository || !event.installation) {
     return;
   }
 
-  const { issue, action, repository } = event;
+  const { issue, action, repository, installation } = event;
   
   const eventMessage = `**Issue ${action.toUpperCase()}**\n` +
     `Repository: ${repository.full_name}\n` +
@@ -179,6 +198,11 @@ async function handleIssueEvent(event: GitHubWebhookEvent) {
     `User: ${issue.user.login}`;
 
   await logToDiscord(eventMessage, "INFO");
+
+  // Handle issue closed event
+  if (action === 'closed') {
+    await handleIssueClosed(repository.full_name, issue.number, installation.id);
+  }
 }
 
 /**
@@ -189,9 +213,7 @@ async function handlePullRequestEvent(event: GitHubWebhookEvent) {
     return;
   }
 
-
-
-  const { pull_request, action, repository,installation } = event;
+  const { pull_request, action, repository, installation, sender } = event;
   
   const eventMessage = `**Pull Request ${action.toUpperCase()}**\n` +
     `Repository: ${repository.full_name}\n` +
@@ -204,15 +226,46 @@ async function handlePullRequestEvent(event: GitHubWebhookEvent) {
     case "opened":
       await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number,pull_request.user.id);
       break;
-    case "reopened":
-      await checkPRforLinkedIssue(pull_request.body,repository.full_name,installation?.id,pull_request.number,pull_request.user.id);
-      break;
     case "closed":
       if(pull_request.merged === true){
-        await releasePayment(repository.full_name,pull_request.number,installation?.id);
+        // Extract issue number from PR body or title
+        const issueNumber = extractIssueNumber(pull_request.body, pull_request.title);
+        
+        if (!issueNumber) {
+          console.log(`Could not extract issue number from PR ${pull_request.number}`);
+          return;
+        }
+
+        // Check if this merged PR is the winner PR for the bounty
+        const bounty = await db.bounty.findFirst({
+          where: {
+            repoName: repository.full_name,
+            issueNumber: issueNumber
+          },
+          include: {
+            submissions: {
+              where: {
+                githubPRNumber: pull_request.number,
+                status: 2 // Winner status
+              }
+            }
+          }
+        });
+
+        if (bounty && bounty.submissions.length > 0) {
+          // This is the winner PR being merged, release payment
+          await releasePayment(repository.full_name,pull_request.number,installation?.id);
+        } else if (bounty) {
+          // Bounty exists but this PR is not the winner PR
+          // This could be either:
+          // 1. A different PR being merged for the same issue (conflicts with existing winner)
+          // 2. A PR being merged when no contributor was assigned (conflicts with unassigned bounty)
+          await handleDifferentPRMerged(repository.full_name, pull_request.number, installation?.id, issueNumber);
+        }
       }
       else{
-        console.log("PR Closed successfully");
+        const closedByMaintainer = sender?.login !== pull_request.user.login;
+        await conflictedBounty(repository.full_name,pull_request.number,installation?.id, closedByMaintainer)        
       }
       break;
     default:
@@ -232,20 +285,56 @@ export async function POST(req: NextRequest) {
     // Get headers
     const eventType = req.headers.get('x-github-event');
     const deliveryId = req.headers.get('x-github-delivery');
+    const signature = req.headers.get('x-hub-signature-256');
 
-    let event:GitHubWebhookEvent;    
-    try {
-          event = await req.json();
+    let event: GitHubWebhookEvent;
 
-    } catch (error) {
+    // Verify webhook signature for security
+    if (signature) {
+      const rawBody = await req.text();
+      if (!verifyWebhookSignature(rawBody, signature)) {
+        await logToDiscord(
+          `❌ **Invalid webhook signature**\nEvent: ${eventType}\nDelivery ID: ${deliveryId}`,
+          "ERROR"
+        );
+        return NextResponse.json(
+          { error: "Invalid webhook signature" },
+          { status: 401 }
+        );
+      }
+      
+      // Parse the body after verification
+      try {
+        event = JSON.parse(rawBody);
+      } catch (error) {
+        await logToDiscord(
+          `❌ **Invalid JSON payload**\nEvent: ${eventType}\nError: ${(error as Error).message}`,
+          "ERROR"
+        );
+        return NextResponse.json(
+          { error: "Invalid JSON payload" },
+          { status: 400 }
+        );
+      }
+    } else {
+      // For development/testing, allow without signature but log warning
       await logToDiscord(
-        `❌ **Invalid JSON payload**\nEvent: ${eventType}\nError: ${(error as Error).message}`,
-        "ERROR"
+        `⚠️ **Webhook signature missing**\nEvent: ${eventType}\nDelivery ID: ${deliveryId}`,
+        "WARN"
       );
-      return NextResponse.json(
-        { error: "Invalid JSON payload" },
-        { status: 400 }
-      );
+      
+      try {
+        event = await req.json();
+      } catch (error) {
+        await logToDiscord(
+          `❌ **Invalid JSON payload**\nEvent: ${eventType}\nError: ${(error as Error).message}`,
+          "ERROR"
+        );
+        return NextResponse.json(
+          { error: "Invalid JSON payload" },
+          { status: 400 }
+        );
+      }
     }
 
     // Get installation information

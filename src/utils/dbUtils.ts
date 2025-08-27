@@ -3,7 +3,7 @@ import { GithubDevProfile, UserDB } from "@/lib/types";
 import { logToDiscord } from "./logger";
 import { formatISO } from "date-fns";
 import { formatDates } from "@/lib/utils";
-import { adminGithub } from "@/lib/constants";
+import { isAdmin } from "@/lib/constants";
 
 export const initializeUser = async (
   githubId: bigint,
@@ -699,12 +699,10 @@ export const setUnscrowedBounty = async (
 export const getUnscrowedBounty = async (user: any) => {
   if (user) {
     // AUTH FOR ADMIN
-    const isAdmin = adminGithub.includes((user as string).toLowerCase());
-    console.log("isAdmin", isAdmin);
-
+    const adminStatus = await isAdmin(user as string);
     try {
       const bounties = await db.bounty.findMany({
-        where: isAdmin ? {} : { status: 2 },
+        where: adminStatus ? {} : { status: 2 },
         include: {
           sponsor: true,
           submissions: true,
@@ -763,11 +761,11 @@ export const getUnscrowedBounty = async (user: any) => {
 export const getUnscrowedBountyById = async (id: number, user: any) => {
   if (user) {
     // AUTH FOR ADMIN
-    const isAdmin = adminGithub.includes((user as string).toLowerCase());
+    const adminStatus = await isAdmin(user as string);
 
     try {
       const bounty = await db.bounty.findUnique({
-        where: isAdmin ? { id: id } : { id: id, status: 2 },
+        where: adminStatus ? { id: id } : { id: id, status: 2 },
         include: {
           sponsor: true,
         },
@@ -1054,6 +1052,7 @@ type EscrowedBountyData = {
   primaryContact: string;
   issueNumber: number;
   repoName: string;
+  sponsorId: number;
 };
 
 export const setEscrowedBounty = async (bountyData: EscrowedBountyData) => {
@@ -1068,13 +1067,21 @@ export const setEscrowedBounty = async (bountyData: EscrowedBountyData) => {
     })
 
     if(bountyAlreadyExists){
+      // If bounty already exists, clear any old submissions before returning
+      await db.submission.deleteMany({
+        where: {
+          bountyId: bountyAlreadyExists.id
+        }
+      });
+      
       return bountyAlreadyExists;
     }
 
     const bounty = await db.bounty.create({
       data:{
         ...bountyData,
-        status:1
+        sponsorId : bountyData.sponsorId,
+        status:1,
       },
 
     })
@@ -1083,7 +1090,7 @@ export const setEscrowedBounty = async (bountyData: EscrowedBountyData) => {
   }catch(e){
     await logToDiscord(`dbUtils/setEscrowedBounty: ${(e as any).message}`, "ERROR");
     console.error(e);
-    return false
+    return;
   }
 }
 
@@ -1094,7 +1101,7 @@ export const updateEscrowedBounty = async(bountyId:number,bountyData:any)=>{
         id:bountyId
       },
       data:{
-        ...bountyData
+        ...bountyData,
       }
       
     })

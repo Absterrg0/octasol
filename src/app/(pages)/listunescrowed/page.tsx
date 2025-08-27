@@ -5,7 +5,7 @@ import Profile from "../../../components/Profile";
 import Bounty from "../../../components/Bounty";
 import SubHeading from "../../../components/SubHeading";
 import { useSelector } from "react-redux";
-import { adminGithub } from "@/lib/constants";
+import { isAdmin } from "@/lib/constants";
 import { useRouter } from "next/navigation";
 // import { useSelector } from "react-redux";
 
@@ -13,11 +13,18 @@ export default function ListUnescrowed() {
   const router = useRouter();
   const user = useSelector((state: any) => state.user);
 
-  // useEffect(() => {
-  //   if (user?.login) {
-  //     if (!adminGithub.includes(user.login.toLowerCase())) router.back();
-  //   }
-  // }, [user]);
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user?.login) {
+        const adminStatus = await isAdmin(user.login);
+        if (!adminStatus) {
+          router.back();
+        }
+      }
+    };
+    
+    checkAdminStatus();
+  }, [user]);
 
   const [activeTab, setActiveTab] = useState<string>(
     localStorage.getItem("activeTab") || "subheading"

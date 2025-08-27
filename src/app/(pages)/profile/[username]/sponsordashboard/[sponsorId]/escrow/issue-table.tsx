@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Calendar, Plus, Shield, ExternalLink, RefreshCw, AlertCircle, CheckCircle2, FolderOpen } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import Image from "next/image"
 import { ISSUES_PER_PAGE } from "../../../../../../../components/RepoInitializeForm/index"
 import {
   Pagination,
@@ -26,7 +27,8 @@ import BountyLockedDialog from "./check-escrow"
 export const IssuesCard = ({ 
     selectedRepo, 
     issues, 
-    onRefresh
+    onRefresh,
+    onIssuesUpdate
   }: any) => {
     const [currentPage, setCurrentPage] = useState(1);
     const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
@@ -47,6 +49,25 @@ export const IssuesCard = ({
         ...prev,
         [issueId]: open
       }));
+    };
+
+    const handleIssueUpdate = (issueNumber: number, newStatus: number) => {
+      // Optimistically update the issue status in the local state
+      // This will immediately show "View Locked Submission" instead of "View Submissions"
+      const updatedIssues = issues.map((issue: any) => {
+        if (issue.number === issueNumber) {
+          return {
+            ...issue,
+            status: newStatus === 2 ? "ESCROW_INIT" : issue.status
+          };
+        }
+        return issue;
+      });
+      
+      // Update the parent component's issues state optimistically
+      if (onIssuesUpdate) {
+        onIssuesUpdate(updatedIssues);
+      }
     };
     
     const formatDate = (dateString: string) =>
@@ -115,7 +136,7 @@ export const IssuesCard = ({
                 </TableHeader>
                 <TableBody>
                   {
-                    currentIssues.map((issue: Issue & { status: "NORMAL" | "BOUNTY_INIT" | "ESCROW_INIT" }) => (
+                    currentIssues.map((issue: Issue & { status: "NORMAL" | "BOUNTY_INIT" | "ESCROW_INIT" | "CANCELLATION_PENDING" }) => (
                       <TableRow
                         key={issue.id}
                         className="border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
@@ -136,10 +157,12 @@ export const IssuesCard = ({
                   
                         <TableCell className="w-[160px] align-middle">
                           <div className="flex items-center gap-2">
-                            <img
+                            <Image
                               src={issue.user.avatar_url || "/placeholder.svg"}
                               alt={issue.user.login}
-                              className="w-7 h-7 rounded-full border-2 border-slate-200 dark:border-slate-700"
+                              width={28}
+                              height={28}
+                              className="rounded-full border-2 border-slate-200 dark:border-slate-700"
                             />
                           </div>
                         </TableCell>
@@ -163,12 +186,17 @@ export const IssuesCard = ({
                               issue={issue}
                               isOpen={dialogStates[issue.id] || false}
                               onOpenChange={(open) => handleDialogOpenChange(issue.id, open)}
+                              onIssueUpdate={handleIssueUpdate}
                             />
                           )}
                           {issue.status === "ESCROW_INIT" && (
                             <BountyLockedDialog
                               issue={issue}
+                              onRefetchIssues={() => onRefresh(selectedRepo)}
                             />
+                          )}
+                          {issue.status === "CANCELLATION_PENDING" && (
+                            <Badge className="bg-yellow-500/10 text-yellow-400 border border-yellow-500/20">Cancelled (pending)</Badge>
                           )}
                           
                         </TableCell>

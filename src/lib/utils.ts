@@ -1,6 +1,8 @@
 import { POST } from "@/config/axios/requests";
+import { Keypair } from "@solana/web3.js";
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { createHash } from "crypto";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -59,4 +61,14 @@ export function formatDates(entity: any): any {
     createdAt: entity.createdAt ? entity.createdAt.toISOString() : null,
     updatedAt: entity.updatedAt ? entity.updatedAt.toISOString() : null,
   };
+}
+
+
+
+
+export  function generateBountyKeypair(bountyId: string): Keypair {
+  const seedString = `octasol_final_bounty_prod_${bountyId}`;
+  const hash = createHash('sha256').update(seedString).digest();
+  const keypairSeed = hash.slice(0, 32);
+  return Keypair.fromSeed(keypairSeed);
 }

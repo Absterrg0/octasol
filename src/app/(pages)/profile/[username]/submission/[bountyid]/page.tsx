@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useSelector } from "react-redux";
 import { cn } from "@/lib/utils";
 import { toast } from "react-toastify";
-import { adminGithub } from "@/lib/constants";
+import { isAdmin } from "@/lib/constants";
 
 interface submission {
   bountyId: string;
@@ -70,7 +70,7 @@ const UserSubmisson = () => {
       );
       if (
         username === user.login ||
-        adminGithub.includes((user.login as string).toLowerCase())
+        await isAdmin(user.login)
       )
         setSubmissionDetails(response);
     } catch (error) {

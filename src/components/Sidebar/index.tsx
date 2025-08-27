@@ -7,6 +7,7 @@ import {
   User,
   ListChecks,
   Briefcase,
+  Shield,
 } from "lucide-react";
 import { IconChartHistogram } from "@tabler/icons-react";
 import Link from "next/link";
@@ -19,6 +20,8 @@ import {
 } from "@/components/ui/tooltip";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { isAdmin } from "@/lib/constants";
+import { useEffect, useState } from "react";
 
 type Props = {
   verified: boolean;
@@ -27,6 +30,19 @@ type Props = {
 const Sidebar = ({ verified }: Props) => {
   const user = useSelector((state: any) => state.user);
   const pathname = usePathname();
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
+  // Check admin status
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user?.login) {
+        const adminStatus = await isAdmin(user.login);
+        setIsAdminUser(adminStatus);
+      }
+    };
+    
+    checkAdminStatus();
+  }, [user]);
 
   // Updated isActive function
   const isActive = (linkPath: string, exact = false) => {
@@ -241,6 +257,33 @@ const Sidebar = ({ verified }: Props) => {
               <p>Sponsor Dashboard</p>
             </TooltipContent>
           </Tooltip>
+
+          {/* Admin-only link for cancellation requests */}
+          {isAdminUser && (
+            <Tooltip>
+              <TooltipTrigger>
+                <Link
+                  href="/admin/bounties"
+                  className="flex items-center gap-4 hover:text-[#45bd95]"
+                >
+                  <Shield
+                    size={32}
+                    color={isActive("/admin/bounties") ? "cyan" : "currentColor"}
+                  />
+                  <span
+                    className={`hidden group-hover:inline-block transition-all duration-300 ease-in-out  ${
+                      isActive("/admin/bounties") && "text-cyan-500"
+                    }`}
+                  >
+                    Admin Panel
+                  </span>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent className="bg-black">
+                <p>Admin Panel</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
         </div>
 
         <div className="rotate-180 h-screen w-px">

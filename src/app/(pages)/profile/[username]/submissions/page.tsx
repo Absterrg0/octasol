@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { RefreshCw } from 'lucide-react'
+import clsx from 'clsx'
 
 type SubmissionItem = {
   id: number
@@ -50,7 +51,7 @@ function truncateHash(hash?: string | null) {
 
 function explorerUrl(signature?: string | null) {
   if (!signature) return undefined
-  return `https://explorer.solana.com/tx/${signature}`
+  return `https://explorer.solana.com/tx/${signature}?cluster=${process.env.NEXT_PUBLIC_SOLANA_CLUSTER}`
 }
 
 export default function UserSubmissionsPage() {
@@ -153,7 +154,7 @@ export default function UserSubmissionsPage() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant={meta.variant} className={meta.className}>{meta.label}</Badge>
+                          <Badge className={clsx(meta.className)}>{meta.label}</Badge>
                         </TableCell>
                         <TableCell>{amount}</TableCell>
                         <TableCell>{formatDate(s.createdAt)}</TableCell>

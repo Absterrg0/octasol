@@ -33,6 +33,7 @@ interface Bounty {
     name: string;
     image: string;
     description: string;
+    type: string;
   };
   submissions: [];
   price: number;
@@ -40,6 +41,8 @@ interface Bounty {
   skills: string[];
   id: number;
   time: string;
+  repoName?: string;
+  issueNumber?: number;
 }
 
 const Bounty = () => {
@@ -49,6 +52,7 @@ const Bounty = () => {
   const dispatch = useDispatch();
   const [bounties, setbounties] = useState<Bounty[]>([]);
   const [open, setOpen] = useState(false);
+  
 
   useEffect(() => {
     if (user.status == "unauthenticated") {
@@ -72,8 +76,16 @@ const Bounty = () => {
     }
   };
 
-  const bountyDetails = (id: number) => {
-    router.push(`/bounty/${id}`);
+  const bountyDetails = (bounty: Bounty) => {
+    console.log(bounty);
+    // Check if sponsor type is "Github Issue" and redirect to GitHub
+    if (bounty.repoName && bounty.issueNumber) {
+      const githubUrl = `https://github.com/${bounty.repoName}/issues/${bounty.issueNumber}`;
+      window.open(githubUrl, '_blank');
+    } else {
+      // Default behavior - redirect to bounty details page
+      router.push(`/bounty/${bounty.id}`);
+    }
   };
 
   useEffect(() => {
@@ -113,7 +125,7 @@ const Bounty = () => {
             <Card
               key={index}
               className="hover:shadow-sm transition-shadow duration-500 cursor-pointer bg-black hover:shadow-[#43aa8a] flex flex-col h-full"
-              onClick={() => bountyDetails(bounty.id)}
+              onClick={() => bountyDetails(bounty)}
             >
               <CardHeader className="space-y-4">
                 <div className="flex items-center justify-between">

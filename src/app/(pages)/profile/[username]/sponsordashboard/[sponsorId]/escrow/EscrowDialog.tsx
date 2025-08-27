@@ -19,31 +19,18 @@ import {
   GitPullRequest, 
   Lock, 
   Wallet,
-  User,
   Calendar,
-  CheckCircle,
-  Clock,
-  XCircle,
-  AlertCircle,
-  Shield,
   DollarSign
 } from "lucide-react"
 import { useSelector } from "react-redux"
 import { GET, POST } from "@/config/axios/requests"
 import idl from "../../../../../../../../contract/idl/octasol_contract.json"
-import type { OctasolContract } from "../../../../../../../../contract/types/octasol_contract"
 import { AnchorProvider, Program, web3, BN } from "@coral-xyz/anchor"
 import { useConnection, useWallet } from "@solana/wallet-adapter-react"
-import { 
-  ASSOCIATED_TOKEN_PROGRAM_ID, 
-  getAssociatedTokenAddressSync, 
-  TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountInstruction,
-  getAssociatedTokenAddress
-} from "@solana/spl-token"
 import { toast } from 'react-toastify';
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js"
 import { createHash } from "crypto"
+import { generateBountyKeypair } from "@/lib/utils"
 
 type Issue = {
   number: number
@@ -85,9 +72,11 @@ type EscrowDialogProps = {
   issue: Issue
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
+  onEscrowSuccess?: () => void;
+  onIssueUpdate?: (issueNumber: number, newStatus: number) => void;
 }
 
-export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDialogProps) {
+export default function EscrowDialog({ issue, isOpen, onOpenChange, onEscrowSuccess, onIssueUpdate }: EscrowDialogProps) {
   const selectedRepo = useSelector((state: any) => state.selectedRepo)
   const user = useSelector((state: any) => state.user)
   const [submissions, setSubmissions] = useState<Submission[]>([])
@@ -103,47 +92,7 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
     }
   }, [isOpen])
 
-  const getStatusInfo = (status: number) => {
-    switch (status) {
-      case 0:
-        return { 
-          label: "Draft", 
-          icon: Clock, 
-          color: "text-orange-400 bg-orange-500/10 border-orange-500/20"
-        }
-      case 1:
-        return { 
-          label: "Submitted", 
-          icon: CheckCircle, 
-          color: "text-blue-400 bg-blue-500/10 border-blue-500/20"
-        }
-      case 2:
-        return { 
-          label: "Winner", 
-          icon: CheckCircle, 
-          color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-        }
-      case 3:
-        return { 
-          label: "Rejected", 
-          icon: XCircle, 
-          color: "text-red-400 bg-red-500/10 border-red-500/20"
-        }
-      default:
-        return { 
-          label: "Unknown", 
-          icon: AlertCircle, 
-          color: "text-slate-400 bg-slate-500/10 border-slate-500/20"
-        }
-    }
-  }
 
-  function generateBountyKeypair(bountyId: string): Keypair {
-    const seedString = `octasol_${bountyId}`;
-    const hash = createHash('sha256').update(seedString).digest();
-    const keypairSeed = hash.slice(0, 32);
-    return Keypair.fromSeed(keypairSeed);
-  }
 
   const handleCreateEscrow = async (submission: Submission): Promise<void> => {
     setCreatingEscrow((prev) => ({ ...prev, [submission.id]: true }));
@@ -189,11 +138,24 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
       const updateStatusResponse = await POST(`/updateSubmissionStatus`, {
         submissionId: submission.id,
         githubId: user.githubId,
+      },
+      {
+        Authorization: `Bearer ${user.accessToken}`
     });
   
       if (updateStatusResponse) {
         toast.success('Contributor assigned successfully!');
-        onOpenChange(false)
+        onOpenChange(false);
+        
+        // Optimistically update the issue status to show "View Locked Submission"
+        if (onIssueUpdate && bounty) {
+          onIssueUpdate(issue.number, 2); // Status 2 = In Progress (locked)
+        }
+        
+        // Call the callback to refresh the issues list if needed
+        if (onEscrowSuccess) {
+          onEscrowSuccess();
+        }
       }
     } catch (error) {
       console.error('Error creating escrow:', error);
@@ -263,7 +225,7 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
         </Button>
       </DialogTrigger>
  
-      <DialogContent className="max-w-4xl w-full max-h-[90vh] p-0 border-2 border-slate-700 rounded-2xl shadow-2xl bg-black overflow-hidden">
+      <DialogContent className="max-w-4xl w-full max-h-[90vh] px-4 border-2 border-slate-700 rounded-2xl shadow-2xl bg-black overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 px-6 py-4 border-b border-slate-700 bg-black">
           <div className="flex items-center justify-between">
@@ -277,9 +239,9 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
               </div>
             </div>
             {bounty && (
-              <div className="flex items-center gap-2 text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1">
+              <div className="flex items-center gap-2  text-sm text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1">
                 <DollarSign className="w-4 h-4" />
-                ${bounty.price} USDC
+                {bounty.price} USDC
               </div>
             )}
           </div>
@@ -304,8 +266,6 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
               ) : (
                 <div className="space-y-4">
                   {submissions.map((submission, index) => {
-                    const statusInfo = getStatusInfo(submission.status)
-                    const StatusIcon = statusInfo.icon
 
                     return (
                       <Card key={submission.id} className="border border-slate-700 bg-slate-900/30 hover:bg-slate-900/50 transition-all">
@@ -314,9 +274,6 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
                             {/* Left: Submission Info */}
                             <div className="flex items-center gap-4">
                               <div className="flex items-center gap-2">
-                                <div className="p-2 bg-slate-800 border border-slate-600 rounded-lg">
-                                  <User className="w-4 h-4 text-slate-300" />
-                                </div>
                                 <span className="text-sm font-medium text-slate-200">#{index + 1}</span>
                               </div>
                               
@@ -345,10 +302,6 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
                             {/* Right: Status and Actions */}
                             <div className="flex items-center gap-3">
                               <div className="flex items-center gap-2">
-                                <Badge className={`gap-1 px-2 py-1 text-xs border ${statusInfo.color}`}>
-                                  <StatusIcon className="w-3 h-3" />
-                                  {statusInfo.label}
-                                </Badge>
                                 <div className="flex items-center gap-1 text-xs text-slate-400">
                                   <Calendar className="w-3 h-3" />
                                   {formatDate(submission.createdAt)}
@@ -369,15 +322,7 @@ export default function EscrowDialog({ issue, isOpen, onOpenChange }: EscrowDial
                             </div>
                           </div>
 
-                          {/* Notes (if available) */}
-                          {submission.notes && (
-                            <div className="mt-3 pt-3 border-t border-slate-700">
-                              <div className="flex items-start gap-2">
-                                <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                                <p className="text-sm text-slate-400 leading-relaxed">{submission.notes}</p>
-                              </div>
-                            </div>
-                          )}
+             
                         </CardContent>
                       </Card>
                     )

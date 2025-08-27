@@ -71,16 +71,18 @@ export async function GET(req: NextRequest) {
       let status = "NORMAL";
       
       if (bounty) {
-        // Check if bounty has status 7 - if so, treat as NORMAL
+        // Treat failed bounties as NORMAL
         if (bounty.status === 7) {
           status = "NORMAL";
+        // Cancellation requested, show pending state
+        } else if (bounty.status === 8) {
+          status = "CANCELLATION_PENDING";
         } else {
           // Check if any submission has status 2 (is winner)
           const hasWinnerSubmission = bounty.submissions?.some((submission: any) => submission.status === 2);
-          
           if (hasWinnerSubmission) {
             status = "ESCROW_INIT";
-          } else {
+          } else if(bounty.status == 2) {
             status = "BOUNTY_INIT";
           }
         }

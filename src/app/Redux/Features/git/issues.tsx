@@ -15,7 +15,7 @@ export interface Issue {
   }
   labels: Array<{ name: string; color: string }>
   html_url: string,
-  status: "NORMAL" | "BOUNTY_INIT" | "ESCROW_INIT"
+  status: "NORMAL" | "BOUNTY_INIT" | "ESCROW_INIT" | "CANCELLATION_PENDING"
 }
 const initialIssuesState: Issue[] = [];
 

@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import axios from "axios";
-import { getAccessToken } from "@/lib/apiUtils";
+import { getAccessToken, getUserByAuthHeader } from "@/lib/apiUtils";
 import { getInstallationId } from "@/utils/dbUtils";
+import { isAdmin } from "@/lib/constants";
 
 export async function POST(req: NextRequest) {
     try {
-        const { submissionId,githubId } = await req.json();
+        const { submissionId, githubId } = await req.json();
 
         // 1. Validate the submission ID.
-        if (!submissionId ) {
+        if (!submissionId) {
             return NextResponse.json({
                 msg: "No submission ID found"
             }, {
@@ -17,15 +18,66 @@ export async function POST(req: NextRequest) {
             });
         }
 
-        if(!githubId){
-
+        if (!githubId) {
             return NextResponse.json({
-                msg: "No installation ID found"
+                msg: "No GitHub ID found"
             }, {
                 status: 400
             });
         }
 
+        // 2. Authorization check - ensure user is bounty owner or admin
+        const authHeader = req.headers.get("Authorization");
+        if (!authHeader) {
+            return NextResponse.json({
+                msg: "Authorization header is required"
+            }, {
+                status: 401
+            });
+        }
+
+        const user = await getUserByAuthHeader(authHeader);
+        if (!user) {
+            return NextResponse.json({
+                msg: "Invalid Authorization Header"
+            }, {
+                status: 401
+            });
+        }
+
+        // Check if user is admin
+        const adminStatus = await isAdmin(user.login);
+
+        // If not admin, verify user owns the bounty
+        if (!adminStatus) {
+            const submission = await db.submission.findUnique({
+                where: { id: submissionId },
+                include: {
+                    bounty: {
+                        include: {
+                            sponsor: true
+                        }
+                    }
+                }
+            });
+
+            if (!submission) {
+                return NextResponse.json({
+                    msg: "Submission not found"
+                }, {
+                    status: 404
+                });
+            }
+
+            // Check if user owns the bounty
+            if (submission.bounty.sponsor?.githubId !== BigInt(user.id)) {
+                return NextResponse.json({
+                    msg: "You are not authorized to modify this submission"
+                }, {
+                    status: 403
+                });
+            }
+        }
 
         const installationId = await getInstallationId(BigInt(githubId));
 
@@ -82,7 +134,7 @@ export async function POST(req: NextRequest) {
                 const commentBody =
                 `✅ **Submission Accepted!**
 
-This submission has been accepted and the wallet address \`${acceptedSubmission.walletAddress || "N/A"}\` has been stored as the recipient of this bounty.
+This submission has been accepted and the wallet address \`${acceptedSubmission.walletAddress ? acceptedSubmission.walletAddress.slice(0, 3) + "..." + acceptedSubmission.walletAddress.slice(-4) : "N/A"}\` has been stored as the recipient of this bounty.
 
 You may continue now.`;
 

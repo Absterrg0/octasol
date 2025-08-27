@@ -1,5 +1,5 @@
 {
-  "address": "5y7GK42mAZm1C6qpFgUgGdNVLPkdd3wJhF9AkyRcDrUv",
+  "address": "GsYHXAJGQ25hA8MLeVXMuXkUPdiQ76k3QQBuYtmVFShp",
   "metadata": {
     "name": "octasol_contract",
     "version": "0.1.0",
@@ -7,6 +7,109 @@
     "description": "Created with Anchor"
   },
   "instructions": [
+    {
+      "name": "admin_assign_and_release",
+      "discriminator": [
+        134,
+        175,
+        242,
+        1,
+        132,
+        43,
+        143,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "bounty",
+          "writable": true
+        },
+        {
+          "name": "escrow_authority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "bounty"
+              }
+            ]
+          }
+        },
+        {
+          "name": "maintainer",
+          "writable": true
+        },
+        {
+          "name": "contributor",
+          "writable": true
+        },
+        {
+          "name": "contributor_token_account",
+          "writable": true
+        },
+        {
+          "name": "escrow_token_account",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "bounty_id",
+          "type": "u64"
+        }
+      ]
+    },
     {
       "name": "assign_contributor",
       "discriminator": [
@@ -56,12 +159,27 @@
       ],
       "accounts": [
         {
-          "name": "maintainer",
+          "name": "admin",
           "writable": true,
-          "signer": true,
-          "relations": [
-            "bounty"
-          ]
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "bounty",
@@ -94,6 +212,10 @@
               }
             ]
           }
+        },
+        {
+          "name": "maintainer",
+          "writable": true
         },
         {
           "name": "maintainer_token_account",
@@ -175,12 +297,26 @@
           "writable": true
         },
         {
-          "name": "keeper",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "bounty"
-          ]
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
         },
         {
           "name": "contributor_token_account",
@@ -265,10 +401,22 @@
           }
         },
         {
-          "name": "keeper",
-          "docs": [
-            "CHECK : KEEPER ACCOUNT FOR AUTO DISPENSING"
-          ]
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "escrow_token_account",
@@ -390,6 +538,98 @@
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "initialize_config",
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "update_admin",
+      "discriminator": [
+        161,
+        176,
+        40,
+        213,
+        60,
+        184,
+        179,
+        228
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -405,9 +645,35 @@
         242,
         234
       ]
+    },
+    {
+      "name": "ConfigState",
+      "discriminator": [
+        193,
+        77,
+        160,
+        128,
+        208,
+        254,
+        180,
+        135
+      ]
     }
   ],
   "events": [
+    {
+      "name": "AdminUpdated",
+      "discriminator": [
+        69,
+        82,
+        49,
+        171,
+        43,
+        3,
+        80,
+        161
+      ]
+    },
     {
       "name": "BountyCancelled",
       "discriminator": [
@@ -481,9 +747,65 @@
       "code": 6003,
       "name": "InvalidContributor",
       "msg": "Invalid contributor"
+    },
+    {
+      "code": 6004,
+      "name": "Unauthorized",
+      "msg": "Unauthorized access"
+    },
+    {
+      "code": 6005,
+      "name": "InvalidBountyStateForOperation",
+      "msg": "Bounty is not in correct state for this operation"
+    },
+    {
+      "code": 6006,
+      "name": "MaintainerMismatch",
+      "msg": "Maintainer mismatch"
+    },
+    {
+      "code": 6007,
+      "name": "ContributorAlreadyAssigned",
+      "msg": "Contributor already assigned"
+    },
+    {
+      "code": 6008,
+      "name": "BountyAlreadyCompleted",
+      "msg": "Bounty is already completed"
+    },
+    {
+      "code": 6009,
+      "name": "BountyAlreadyCancelled",
+      "msg": "Bounty is already cancelled"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidMint",
+      "msg": "Invalid mint"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidTokenAccount",
+      "msg": "Invalid token account"
     }
   ],
   "types": [
+    {
+      "name": "AdminUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "old_admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "new_admin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "Bounty",
       "type": {
@@ -522,10 +844,6 @@
           {
             "name": "bounty_id",
             "type": "u64"
-          },
-          {
-            "name": "keeper",
-            "type": "pubkey"
           }
         ]
       }
@@ -606,6 +924,22 @@
           },
           {
             "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConfigState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }

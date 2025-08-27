@@ -154,3 +154,10 @@ model Submission {
   bountyId        Int
   bounty          Bounty @relation(fields: [bountyId], references: [id])
 }
+
+model Admin {
+  id           Int      @id @default(autoincrement())
+  githubName   String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
+}

@@ -13,6 +13,7 @@ import { setInstallationId } from "@/app/Redux/Features/git/githubInstallation";
 import { POST } from "@/config/axios/requests";
 import { githubInstallations } from "@/config/axios/Breakpoints";
 import { setError } from "@/app/Redux/Features/error/error";
+import { Button } from "@/components/ui/button";
 
 
 
@@ -71,6 +72,7 @@ export default function EscrowPage() {
           selectedRepo={selectedRepo}
           issues={issues}
           onRefresh={() => fetchIssues(installationId)}
+          onIssuesUpdate={(updatedIssues: any) => dispatch(setIssues(updatedIssues))}
         />
       </div>
       {/* Right: Repo Details Card */}  

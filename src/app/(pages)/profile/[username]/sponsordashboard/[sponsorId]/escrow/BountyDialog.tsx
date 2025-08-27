@@ -38,8 +38,7 @@ import idl from "../../../../../../../../contract/idl/octasol_contract.json"
 import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, getAssociatedTokenAddressSync } from "@solana/spl-token"
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token"
 import { Connection, Keypair, PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js"
-import { createHash } from "crypto"
-
+import { generateBountyKeypair } from "@/lib/utils"
 // --- Form Schema Definition ---
 const bountyFormSchema = z.object({
   title: z
@@ -81,7 +80,6 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
   const selectedRepo = useSelector((state:any)=>state.selectedRepo);
   const [isLoading, setIsLoading] = useState(false)
   const { connection } = useConnection()
-  
   const wallet = useWallet();
     const form = useForm<BountyFormData>({
     resolver: zodResolver(bountyFormSchema),
@@ -102,12 +100,7 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
   }
   
   // Your deterministic keypair generation function
-  function generateBountyKeypair(bountyId: string): Keypair {
-    const seedString = `octasol_${bountyId}`;
-    const hash = createHash('sha256').update(seedString).digest();
-    const keypairSeed = hash.slice(0, 32);
-    return Keypair.fromSeed(keypairSeed);
-  }
+  
   
   const onSubmit = async (data: BountyFormData) => {
     if (!user || !selectedRepo || !issue) {
@@ -132,7 +125,7 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
         repoName: selectedRepo.full_name,
         status: 1 // CREATING status
       }
-  
+
       // Step 1: Create bounty record in DB first
       const { response, error } = await POST("/create-bounty", payload, {
         Authorization: `Bearer ${user.accessToken}`,
@@ -160,7 +153,8 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
   
       const bountyIdBN = new BN(bountyId);
       const amountBN = new BN(data.price * 1000000);
-      const USDCMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+      const USDCMintAddress = process.env.NEXT_PUBLIC_USDC_MINT_ADDRESS || "";
+      const USDCMint = new PublicKey(USDCMintAddress);
       const maintainerTokenAccount = getAssociatedTokenAddressSync(USDCMint, wallet.publicKey, false, TOKEN_PROGRAM_ID);
       const bountyAccountKp = generateBountyKeypair(bountyId!);
       
@@ -178,6 +172,11 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
       // Step 3: Check if the on-chain bounty account already exists to prevent crashes
       const bountyAccountExists = await checkAccountExists(connection, bountyAccountKp.publicKey);
 
+      const [configPda] = PublicKey.findProgramAddressSync(
+        [Buffer.from("config")],
+        program.programId
+    );
+
       if (bountyAccountExists) {
         toast.error("Bounty already exists on-chain. Please contact support.");
         return;
@@ -191,8 +190,8 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
               bounty: bountyAccountKp.publicKey,
               maintainerTokenAccount: maintainerTokenAccount,
               escrowAuthority: escrowAuthorityPda,
-              keeper: new PublicKey(process.env.NEXT_PUBLIC_ADMIN_PUBLIC_KEY!),
               escrowTokenAccount: escrowTokenAccount,
+              config: configPda,
               mint: USDCMint,
               systemProgram: SystemProgram.programId,
               tokenProgram: TOKEN_PROGRAM_ID,

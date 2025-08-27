@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useSelector, useDispatch } from "react-redux"
 import { useRouter } from "next/navigation"
 import { v4 as uuidv4 } from "uuid"
@@ -60,6 +60,7 @@ export default function RepoInitializeForm() {
   const selectedRepo = useSelector((state: any) => state.selectedRepo)
   const issues = useSelector((state: any) => state.issues)
   const searchTerm = useSelector((state: any) => state.search.query)
+  const [isInstalling, setIsInstalling] = useState(false)
 
   const dispatchInstallationId = async (forceRefresh = false) => {
     if (user) {
@@ -100,55 +101,97 @@ export default function RepoInitializeForm() {
   }
 
   const handleInstall = () => {
+    setIsInstalling(true)
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID ?? ""
-    const redirectUri = process.env.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_CALLBACK_URL ?? ""
+    const redirectUri = process.env.NEXT_PUBLIC_GITHUB_APP_INSTALLATION_CALLBACK_URL! 
     const state = uuidv4()
     cookie.set("oauth_state", state, {
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     })
-    const installUrl = `https://github.com/apps/osol-feat-app-dev/installations/new?state=${state}&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}`
+    const installUrl = `https://github.com/apps/osol-feat-app-dev/installations/new?state=${state}&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}` 
     
-    // Open in popup window
-    const popup = window.open(
-      installUrl,
-      'github-install',
-      'width=600,height=700,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no'
-    )
+    // First-time install → open in same window; otherwise open in new tab for permission updates
+    const isFirstInstall = !installationId
+    if (isFirstInstall) {
+      setIsInstalling(false)
+      window.location.href = installUrl
+      return
+    }
+
+    // Open in new tab
+    const newTab = window.open(installUrl, '_blank')
     
-    // Handle popup blocked scenario
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      // Fallback to regular navigation if popup is blocked
+    // Handle tab blocked scenario
+    if (!newTab) {
+      // Fallback to regular navigation if tab is blocked
+      setIsInstalling(false)
       router.push(installUrl)
       return
     }
 
-    // Method 1: Poll for popup closure
+    // Set up multiple methods to detect installation completion
+    
+    // Method 1: Poll for tab closure
     const checkClosed = setInterval(() => {
-      if (popup.closed) {
+      if (newTab.closed) {
         clearInterval(checkClosed)
-        // Refetch repositories after popup closes
+        clearTimeout(manualRefreshTimeout)
+        setIsInstalling(false)
+        // Refetch repositories after tab closes
         setTimeout(() => {
           dispatchInstallationId(true) // Force refresh
-        }, 1000) // Small delay to ensure GitHub processes the installation
+        }, 2000) // Small delay to ensure GitHub processes the installation
       }
     }, 1000)
 
     // Method 2: Listen for window focus (backup method)
     const handleWindowFocus = () => {
-      if (popup.closed) {
+      if (newTab.closed) {
         window.removeEventListener('focus', handleWindowFocus)
+        clearTimeout(manualRefreshTimeout)
+        setIsInstalling(false)
+        setTimeout(() => {
+          dispatchInstallationId(true)
+        }, 2000)
+      }
+    }
+    window.addEventListener('focus', handleWindowFocus)
+
+    // Method 3: Manual refresh button after 30 seconds
+    const manualRefreshTimeout = setTimeout(() => {
+      // Show a toast or notification to user that they can manually refresh
+      console.log('GitHub installation may be complete. You can refresh the page or wait for automatic detection.')
+    }, 30000)
+
+    // Method 4: Listen for message from callback page
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return
+      if (event.data.type === 'GITHUB_INSTALLATION_COMPLETE' && event.data.success) {
+        window.removeEventListener('message', handleMessage)
+        clearInterval(checkClosed)
+        clearTimeout(manualRefreshTimeout)
+        setIsInstalling(false)
+        if (newTab && !newTab.closed) {
+          newTab.close()
+        }
         setTimeout(() => {
           dispatchInstallationId(true)
         }, 1000)
       }
     }
-    window.addEventListener('focus', handleWindowFocus)
+    window.addEventListener('message', handleMessage)
 
     // Cleanup after 5 minutes to prevent memory leaks
     setTimeout(() => {
       clearInterval(checkClosed)
+      clearTimeout(manualRefreshTimeout)
+      setIsInstalling(false)
       window.removeEventListener('focus', handleWindowFocus)
+      window.removeEventListener('message', handleMessage)
+      if (newTab && !newTab.closed) {
+        newTab.close()
+      }
     }, 300000)
   }
 
@@ -213,10 +256,20 @@ export default function RepoInitializeForm() {
                     <div className="flex flex-col sm:flex-row gap-3 w-full">
                       <Button
                         onClick={handleInstall}
+                        disabled={isInstalling}
                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
                       >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Install GitHub App
+                        {isInstalling ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent mr-2"></div>
+                            Installing...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Install GitHub App
+                          </>
+                        )}
                       </Button>
                       <Button
                         onClick={() => router.push(`/profile/${user?.name}/sponsordashboard`)}
@@ -277,9 +330,10 @@ export default function RepoInitializeForm() {
                       Missing a repository?{" "}
                       <button
                         onClick={handleInstall}
-                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors"
+                        disabled={isInstalling}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 underline font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Install GitHub App
+                        {isInstalling ? "Installing..." : "Install GitHub App"}
                       </button>
                     </p>
                   </div>

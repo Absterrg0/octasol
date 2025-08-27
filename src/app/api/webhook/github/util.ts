@@ -6,11 +6,36 @@ import { db } from "@/lib/db";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import { OctasolContract } from "../../../../../contract/types/octasol_contract";
 import idl from "../../../../../contract/idl/octasol_contract.json";
+
 import { BN } from "@coral-xyz/anchor";
 import { createHash } from "crypto";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction, getAssociatedTokenAddress, getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import NodeWallet from '@coral-xyz/anchor/dist/cjs/nodewallet' 
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
+import { generateBountyKeypair } from "@/lib/utils";
+
+// Helper function to extract issue number from PR body or title
+export function extractIssueNumber(body: string | null, title: string | null): number | null {
+  const text = (body || '') + ' ' + (title || '');
+  
+  // Look for patterns like "closes #123", "fixes #123", "resolves #123"
+  const issueLinkRegex = /(?:closes|fixes|resolves)\s+#(\d+)/i;
+  const match = text.match(issueLinkRegex);
+  
+  if (match) {
+    return parseInt(match[1], 10);
+  }
+  
+  // If no explicit link, try to find issue number in title
+  const titleIssueRegex = /#(\d+)/;
+  const titleMatch = title?.match(titleIssueRegex);
+  
+  if (titleMatch) {
+    return parseInt(titleMatch[1], 10);
+  }
+  
+  return null;
+}
 
 export async function checkPRforLinkedIssue(body: string, repoName: string, installationId: number, pullRequestNumber: number, githubId: number) {
   
@@ -27,6 +52,7 @@ export async function checkPRforLinkedIssue(body: string, repoName: string, inst
     // Safely extract the issue number. `match[1]` contains the digits captured by `(\d+)`.
     const issueNumber = parseInt(match[1], 10);
 
+    // Improved wallet address validation with proper Solana PublicKey validation
     const solWalletRegex = /\b[1-9A-HJ-NP-Za-km-z]{32,44}\b/;
     const walletMatch = prBody.match(solWalletRegex);
     let walletAddress = walletMatch ? walletMatch[0] : "";
@@ -49,7 +75,7 @@ export async function checkPRforLinkedIssue(body: string, repoName: string, inst
                 walletSource = 'database';
             }
         } catch (dbError) {
-
+            console.error('Error fetching user wallet from database:', dbError);
         }
     } else {
         walletSource = 'pr_description';
@@ -58,9 +84,17 @@ export async function checkPRforLinkedIssue(body: string, repoName: string, inst
     let publicKey = null;
     if (walletAddress) {
         try {
+          // Validate wallet address using Solana PublicKey constructor
           publicKey = new PublicKey(walletAddress);
+          // Additional validation: ensure it's a valid Ed25519 public key
+          if (!publicKey.toBytes || publicKey.toBytes().length !== 32) {
+            throw new Error('Invalid public key length');
+          }
         } catch (error) {
-          throw new Error(`Not a valid Solana public key: ${walletAddress}`);
+          console.error(`Invalid Solana wallet address: ${walletAddress}`, error);
+          // Don't throw error, just log and continue without wallet
+          walletAddress = "";
+          publicKey = null;
         }
     }
 
@@ -68,6 +102,45 @@ export async function checkPRforLinkedIssue(body: string, repoName: string, inst
     const bounty = bounties?.find((bounty: any) => bounty.issueNumber === issueNumber);
     
     if (bounty) {
+        // Check if there's already a winner submission for this bounty
+        const existingWinnerSubmission = await db.submission.findFirst({
+            where: {
+                bountyId: bounty.id,
+                status: 2 // Winner status
+            }
+        });
+
+        const accessToken = await getAccessToken(installationId);
+        
+        if (existingWinnerSubmission) {
+            // A contributor has already been assigned to this bounty
+            const commentBody = `## Bounty Already Assigned
+
+A contributor has already been assigned to this bounty. Feel free to work on this issue, but your contribution **will not be considered for the bounty payout**.
+
+The bounty is currently being worked on by another contributor who has been officially assigned.
+
+---
+### Alternative Opportunities
+
+Check out other open bounties on [Octasol.io](https://octasol.io) for similar opportunities!`;
+
+            try {
+                await axios.post(`https://api.github.com/repos/${repoName}/issues/${pullRequestNumber}/comments`, {
+                    body: commentBody
+                }, {
+                    headers: {
+                        Authorization: `token ${accessToken}`,
+                        Accept: "application/vnd.github.v3+json",
+                    },
+                });
+            } catch (error) {
+                console.error('Error posting comment for already assigned bounty:', error);
+            }
+            return; // Exit early, don't create a submission
+        }
+
+        // No winner submission exists, proceed with normal submission process
         try {
             await setEscrowedSubmission({
               bountyId: bounty.id,
@@ -78,8 +151,6 @@ export async function checkPRforLinkedIssue(body: string, repoName: string, inst
               notes: body,
               links: [`https://github.com/${repoName}/pull/${pullRequestNumber}`]
             });
-
-            const accessToken = await getAccessToken(installationId);
             
             // Format wallet address for display (first 3 + last 4 characters)
             const formatWalletDisplay = (address: string) => {
@@ -157,6 +228,194 @@ To be eligible for the bounty payout, please provide a valid wallet address eith
     }
 }
 
+export async function handleIssueClosed(repoName: string, issueNumber: number, installationId: number) {
+  try {
+    // Find the bounty for this issue
+    const bounty = await db.bounty.findFirst({
+      where: {
+        repoName: repoName,
+        issueNumber: issueNumber
+      },
+      include: {
+        submissions: {
+          where: {
+            status: 2 // Winner status
+          }
+        }
+      }
+    });
+
+    if (!bounty) {
+      console.log(`No bounty found for issue ${issueNumber} in repo ${repoName}`);
+      return;
+    }
+
+    // Check if there's a winner submission and if the issue was closed by a merged PR
+    if (bounty.submissions.length > 0) {
+      // There's a winner submission - check if the issue was closed by the winner PR
+      const winnerSubmission = bounty.submissions[0];
+      
+      // Get recent PRs for this issue to check if the winner PR was merged
+      const accessToken = await getAccessToken(installationId);
+      
+      try {
+        // Get the issue to see if it was closed by a PR
+        const issueResponse = await axios.get(
+          `https://api.github.com/repos/${repoName}/issues/${issueNumber}`,
+          {
+            headers: {
+              Authorization: `token ${accessToken}`,
+              Accept: "application/vnd.github.v3+json",
+            },
+          }
+        );
+
+        const issue = issueResponse.data;
+        
+        // Check if the issue was closed by a PR (pull_request field will be present)
+        if (issue.pull_request && issue.pull_request.merged_at) {
+          // Issue was closed by a merged PR
+          const mergedPRNumber = issue.pull_request.number;
+          
+          // Check if this merged PR is the winner PR
+          if (mergedPRNumber === winnerSubmission.githubPRNumber) {
+            // This is the winner PR being merged - don't move to conflicted state
+            // The releasePayment function will handle this properly
+            console.log(`Issue ${issueNumber} closed by winner PR ${mergedPRNumber} - not moving to conflicted state`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error checking issue details:', error);
+        // If we can't check, proceed with conflicted state as fallback
+      }
+    }
+
+    // If we reach here, either:
+    // 1. No winner submission exists
+    // 2. Issue was closed by something other than the winner PR
+    // 3. Error occurred while checking issue details
+    
+    // Update bounty status to conflicted (status 8)
+    await db.bounty.update({
+      where: { id: bounty.id },
+      data: { status: 8 }
+    });
+
+    // Post comment on the issue
+    const accessToken = await getAccessToken(installationId);
+    const commentBody = `## Bounty Status: Conflicted
+
+This issue has been closed while a bounty was active. The bounty has been moved to a **conflicted state**.
+
+**What this means:**
+- The bounty is now under admin review
+- The escrow funds will be handled by the Octasol team
+
+**Next Steps:**
+The Octasol team will review this situation and determine the appropriate action for the escrow funds.
+
+---
+*This is an automated message from the Octasol bounty system.*`;
+
+    await axios.post(`https://api.github.com/repos/${repoName}/issues/${issueNumber}/comments`, {
+      body: commentBody
+    }, {
+      headers: {
+        Authorization: `token ${accessToken}`,
+        Accept: "application/vnd.github.v3+json",
+      },
+    });
+
+  } catch (error) {
+    console.error('Error handling issue closed:', error);
+  }
+}
+
+export async function handleDifferentPRMerged(repoName: string, prNumber: number, installationId: number, issueNumber: number) {
+  try {
+    // Find the bounty for this issue
+    const bounty = await db.bounty.findFirst({
+      where: {
+        repoName: repoName,
+      },
+      include: {
+        submissions: {
+          where: {
+            status: 2 // Winner status
+          }
+        }
+      }
+    });
+
+    if (!bounty) {
+      console.log(`No bounty found for repo: ${repoName}, issue: ${prNumber}`);
+      return;
+    }
+
+    // Always move bounty to conflicted state (status 8)
+    await db.bounty.update({
+      where: { id: bounty.id },
+      data: { status: 8 }
+    });
+
+    console.log(`Bounty ${bounty.id} moved to conflicted state due to different PR merge`);
+
+    // Post comment on the merged PR
+    const accessToken = await getAccessToken(installationId);
+    let commentBody = '';
+
+    if (bounty.submissions.length > 0) {
+      // There's a winner submission - this is a conflict with existing assignment
+      commentBody = `## ⚠️ Bounty Conflict Detected
+
+A different pull request has been merged for this issue while there was an active bounty with an assigned contributor.
+
+**What happened:**
+- This PR was merged, but there was already a bounty with an assigned contributor for this issue
+- The bounty has been moved to "conflicted" state for admin review
+- The original bounty contributor may still be eligible for payment
+
+**What happens next:**
+- Admins will review the situation and determine the appropriate action
+- This may result in the bounty being cancelled or paid out to the original contributor
+
+For further support, please contact the admins at [Octasol](https://octasol.io).`;
+    } else {
+      // No winner submission - this is a conflict with unassigned bounty
+      commentBody = `## ⚠️ Bounty Conflict Detected
+
+A pull request has been merged for this issue while there was an active bounty that had not been assigned to any contributor yet.
+
+**What happened:**
+- This PR was merged, but there was already a bounty created for this issue
+- The bounty had not been assigned to any contributor yet
+- The bounty has been moved to "conflicted" state for admin review
+
+**What happens next:**
+- Admins will review the situation and determine the appropriate action
+- This may result in the bounty being cancelled or the escrow being returned
+
+For further support, please contact the admins at [Octasol](https://octasol.io).`;
+    }
+
+    await axios.post(
+      `https://api.github.com/repos/${repoName}/issues/${prNumber}/comments`,
+      { body: commentBody },
+      {
+        headers: {
+          Authorization: `token ${accessToken}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+      }
+    );
+
+  } catch (error) {
+    console.error('Error in handleDifferentPRMerged:', error);
+    // Don't post any comment on error to avoid cluttering
+  }
+}
+
 
 
 
@@ -176,6 +435,7 @@ export async function releasePayment(repoName: string, prNumber: number, install
       'confirmed'
     );
 
+    
     const winnerSubmission = await db.submission.findFirst({
       where: {
         githubPRNumber: prNumber,
@@ -233,7 +493,8 @@ For further support, please contact the admins at [Octasol](https://octasol.io).
       program.programId
     );
 
-    const USDCMint = new PublicKey("4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU");
+    const USDCMintAddress = process.env.NEXT_PUBLIC_USDC_MINT_ADDRESS || "";
+    const USDCMint = new PublicKey(USDCMintAddress);
     const winnerAccount = new PublicKey(winnerSubmission.walletAddress);
     const bountyIdBN = new BN(winnerSubmission.bountyId);
 
@@ -264,6 +525,13 @@ For further support, please contact the admins at [Octasol](https://octasol.io).
 
       const createATATx = new Transaction().add(createATAInstruction);
       await provider.sendAndConfirm(createATATx);
+    }
+
+    const [configPda] = PublicKey.findProgramAddressSync([Buffer.from("config")], program.programId);
+    const config: any = await (program as any).account.configState.fetch(configPda);
+    const validAdmin = serverWallet.publicKey.equals(config.admin);
+    if (!validAdmin) {
+      throw new Error('Invalid admin');
     }
 
     // Execute the smart contract transaction
@@ -307,7 +575,11 @@ For further support, please contact the admins at [Octasol](https://octasol.io).
 
 Congratulations! Your pull request has been **successfully merged**, and the bounty for this issue has been released.
 
-**Funds have been sent to your Solana wallet address:** \`${winnerSubmission.walletAddress}\`
+**Funds have been sent to your Solana wallet address:** \`${winnerSubmission.walletAddress ? winnerSubmission.walletAddress.slice(0, 3) + "..." + winnerSubmission.walletAddress.slice(-4) : "N/A"}\`
+
+**Transaction Signature:** \`${txSignature}\`
+
+You can verify this transaction on [Solana Explorer](https://explorer.solana.com/tx/${txSignature}?cluster=${process.env.NEXT_PUBLIC_SOLANA_CLUSTER}).
 
 ---
 
@@ -337,13 +609,95 @@ Thank you for contributing! 🚀
   }
 }
 
-  function generateBountyKeypair(bountyId: string): Keypair {
-    // Create a deterministic seed from bounty ID
-    const seedString = `octasol_${bountyId}`;
-    const hash = createHash('sha256').update(seedString).digest();
-    
-    // Take first 32 bytes for keypair seed
-    const keypairSeed = hash.slice(0, 32);
-    
-    return Keypair.fromSeed(keypairSeed);
+
+
+
+  export async function conflictedBounty(repoName: string, prNumber: number, installationId: number, closedByMaintainer: boolean = false) {
+    try {
+      // Find the bounty and check if this PR is the winner
+
+
+      const bounty = await db.bounty.findFirst({
+        where: {
+          repoName: repoName,
+          submissions:{
+            some:{
+              githubPRNumber: prNumber,
+            }
+          },
+        },
+        include:{
+          submissions:{
+            where:{
+              status:2
+            }
+          }    
+        }
+        
+      });
+
+      if (!bounty) {
+        console.log(`No bounty found for repo: ${repoName}, issue: ${prNumber}`);
+        return;
+      }
+
+      const isWinnerPR =  bounty.submissions.length > 0;
+      
+      if (isWinnerPR) {
+        // Move bounty to conflicted state (status 8 - request to cancel)
+        await db.bounty.update({
+          where: { id: bounty.id },
+          data: { status: 8 }
+        });
+
+      }
+
+      const accessToken = await getAccessToken(installationId);
+
+      // Only post comment if it's the winner PR
+      if (isWinnerPR) {
+        let commentBody: string;
+        
+        if (closedByMaintainer) {
+          commentBody = `## ⚠️ Winner PR Closed by Maintainer
+
+The assigned pull request for this bounty has been closed by the repository maintainer. This has triggered a conflict resolution process.
+
+**What happens next:**
+- The bounty has been moved to "conflicted" state
+- Admins will review the situation and determine the appropriate action
+- This may result in the bounty being cancelled or paid out to the winner
+
+For further support, please contact the admins at [Octasol](https://octasol.io).
+          `;
+        } else {
+          commentBody = `## ⚠️ Winner PR Closed by Contributor
+
+The winning pull request for this bounty has been closed by the contributor. This has triggered a conflict resolution process.
+
+**What happens next:**
+- The bounty has been moved to "conflicted" state  
+- Admins will review the situation and determine the appropriate action
+- This may result in the bounty being cancelled or paid out to the winner
+
+For further support, please contact the admins at [Octasol](https://octasol.io).
+          `;
+        }
+
+        await axios.post(
+          `https://api.github.com/repos/${repoName}/issues/${prNumber}/comments`,
+          { body: commentBody },
+          {
+            headers: {
+              Authorization: `token ${accessToken}`,
+              Accept: "application/vnd.github.v3+json",
+            },
+          }
+        );
+      }
+
+    } catch (error) {
+      console.error('Error in conflictedBounty:', error);
+      // Don't post any comment on error to avoid cluttering
+    }
   }

@@ -1,5 +1,5 @@
 import { getUserByAuthHeader } from "@/lib/apiUtils";
-import { adminGithub } from "@/lib/constants";
+import { isAdmin } from "@/lib/constants";
 import { bigintToString } from "@/lib/utils";
 import { getSponsorProfile, setSponsorProfile } from "@/utils/dbUtils";
 import { NextRequest, NextResponse } from "next/server";
@@ -20,7 +20,8 @@ export async function POST(req: NextRequest) {
     );
   }
   // AUTH FOR ADMIN
-  if (!adminGithub.includes((user.login as string).toLowerCase())) {
+  const adminStatus = await isAdmin(user.login);
+  if (!adminStatus) {
     return NextResponse.json(
       { error: "You are not authorized to perform this action" },
       { status: 401 }

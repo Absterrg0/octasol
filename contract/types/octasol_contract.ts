@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/octasol_contract.json`.
  */
 export type OctasolContract = {
-  "address": "5y7GK42mAZm1C6qpFgUgGdNVLPkdd3wJhF9AkyRcDrUv",
+  "address": "GsYHXAJGQ25hA8MLeVXMuXkUPdiQ76k3QQBuYtmVFShp",
   "metadata": {
     "name": "octasolContract",
     "version": "0.1.0",
@@ -13,6 +13,109 @@ export type OctasolContract = {
     "description": "Created with Anchor"
   },
   "instructions": [
+    {
+      "name": "adminAssignAndRelease",
+      "discriminator": [
+        134,
+        175,
+        242,
+        1,
+        132,
+        43,
+        143,
+        155
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "bounty",
+          "writable": true
+        },
+        {
+          "name": "escrowAuthority",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  97,
+                  117,
+                  116,
+                  104
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "bounty"
+              }
+            ]
+          }
+        },
+        {
+          "name": "maintainer",
+          "writable": true
+        },
+        {
+          "name": "contributor",
+          "writable": true
+        },
+        {
+          "name": "contributorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "escrowTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        }
+      ],
+      "args": [
+        {
+          "name": "bountyId",
+          "type": "u64"
+        }
+      ]
+    },
     {
       "name": "assignContributor",
       "discriminator": [
@@ -62,12 +165,27 @@ export type OctasolContract = {
       ],
       "accounts": [
         {
-          "name": "maintainer",
+          "name": "admin",
           "writable": true,
-          "signer": true,
-          "relations": [
-            "bounty"
-          ]
+          "signer": true
+        },
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "bounty",
@@ -100,6 +218,10 @@ export type OctasolContract = {
               }
             ]
           }
+        },
+        {
+          "name": "maintainer",
+          "writable": true
         },
         {
           "name": "maintainerTokenAccount",
@@ -181,12 +303,26 @@ export type OctasolContract = {
           "writable": true
         },
         {
-          "name": "keeper",
-          "writable": true,
-          "signer": true,
-          "relations": [
-            "bounty"
-          ]
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "admin",
+          "signer": true
         },
         {
           "name": "contributorTokenAccount",
@@ -271,10 +407,22 @@ export type OctasolContract = {
           }
         },
         {
-          "name": "keeper",
-          "docs": [
-            "CHECK : KEEPER ACCOUNT FOR AUTO DISPENSING"
-          ]
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "escrowTokenAccount",
@@ -396,6 +544,98 @@ export type OctasolContract = {
           "type": "u64"
         }
       ]
+    },
+    {
+      "name": "initializeConfig",
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "updateAdmin",
+      "discriminator": [
+        161,
+        176,
+        40,
+        213,
+        60,
+        184,
+        179,
+        228
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "newAdmin",
+          "type": "pubkey"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -411,9 +651,35 @@ export type OctasolContract = {
         242,
         234
       ]
+    },
+    {
+      "name": "configState",
+      "discriminator": [
+        193,
+        77,
+        160,
+        128,
+        208,
+        254,
+        180,
+        135
+      ]
     }
   ],
   "events": [
+    {
+      "name": "adminUpdated",
+      "discriminator": [
+        69,
+        82,
+        49,
+        171,
+        43,
+        3,
+        80,
+        161
+      ]
+    },
     {
       "name": "bountyCancelled",
       "discriminator": [
@@ -487,9 +753,65 @@ export type OctasolContract = {
       "code": 6003,
       "name": "invalidContributor",
       "msg": "Invalid contributor"
+    },
+    {
+      "code": 6004,
+      "name": "unauthorized",
+      "msg": "Unauthorized access"
+    },
+    {
+      "code": 6005,
+      "name": "invalidBountyStateForOperation",
+      "msg": "Bounty is not in correct state for this operation"
+    },
+    {
+      "code": 6006,
+      "name": "maintainerMismatch",
+      "msg": "Maintainer mismatch"
+    },
+    {
+      "code": 6007,
+      "name": "contributorAlreadyAssigned",
+      "msg": "Contributor already assigned"
+    },
+    {
+      "code": 6008,
+      "name": "bountyAlreadyCompleted",
+      "msg": "Bounty is already completed"
+    },
+    {
+      "code": 6009,
+      "name": "bountyAlreadyCancelled",
+      "msg": "Bounty is already cancelled"
+    },
+    {
+      "code": 6010,
+      "name": "invalidMint",
+      "msg": "Invalid mint"
+    },
+    {
+      "code": 6011,
+      "name": "invalidTokenAccount",
+      "msg": "Invalid token account"
     }
   ],
   "types": [
+    {
+      "name": "adminUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "oldAdmin",
+            "type": "pubkey"
+          },
+          {
+            "name": "newAdmin",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "bounty",
       "type": {
@@ -528,10 +850,6 @@ export type OctasolContract = {
           {
             "name": "bountyId",
             "type": "u64"
-          },
-          {
-            "name": "keeper",
-            "type": "pubkey"
           }
         ]
       }
@@ -612,6 +930,22 @@ export type OctasolContract = {
           },
           {
             "name": "cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "configState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }

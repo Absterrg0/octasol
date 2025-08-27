@@ -1,21 +1,17 @@
 import { sign } from "jsonwebtoken";
-import { readFileSync } from "fs";
 import axios, { AxiosRequestConfig } from "axios";
 import { getInstallationId, setUser } from "@/utils/dbUtils";
 import { getCache, setCache } from "./cache";
 import { logToDiscord } from "@/utils/logger";
-import path from 'path';
 
 export function getToken() {
   try {
-    const privateKeyFile = process.env.GITHUB_PRIVATE_KEY_FILE_NAME;
-    if (!privateKeyFile) {
-      throw new Error("GITHUB_PRIVATE_KEY_FILE_NAME is not set.");
+    const privateKey = process.env.GITHUB_PRIVATE_KEY;
+    
+    if (!privateKey) {
+      throw new Error("GITHUB_PRIVATE_KEY environment variable is not set.");
     }
 
-    // Use path.join to safely construct the path
-    const privateKeyPath = path.join(process.cwd(), 'keys', privateKeyFile);
-    const privateKey = readFileSync(privateKeyPath, "utf8");
     const appId = process.env.GITHUB_APP_ID;
 
     if (!appId) {
