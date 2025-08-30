@@ -547,7 +547,8 @@ For further support, please contact the admins at [Octasol](https://octasol.io).
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        keeper: serverWallet.publicKey,
+        admin: serverWallet.publicKey,
+        config: configPda,
       })
       .rpc();
 

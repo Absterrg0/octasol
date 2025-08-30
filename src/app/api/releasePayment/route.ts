@@ -152,7 +152,6 @@ ${winnerSubmission ? `- **GitHub:** @${winnerUsername || 'Unknown'}
       }
     );
 
-    console.log('GitHub comment posted successfully:', response.data.id);
   } catch (error) {
     console.error('Failed to post GitHub comment:', error);
     // Don't throw error - commenting is not critical for payment
@@ -439,6 +438,7 @@ export async function POST(req: NextRequest) {
           const createATATx = new Transaction().add(createATAInstruction);
           await provider.sendAndConfirm(createATATx);
         }
+        const configPda = PublicKey.findProgramAddressSync([Buffer.from("config")], program.programId);
 
         const validAdmin = serverWallet.publicKey.equals(config.admin);
         if (!validAdmin) {
@@ -458,7 +458,8 @@ export async function POST(req: NextRequest) {
             systemProgram: SystemProgram.programId,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            keeper: serverWallet.publicKey,
+            admin: serverWallet.publicKey,
+            config: configPda,
           })
           .rpc();
 

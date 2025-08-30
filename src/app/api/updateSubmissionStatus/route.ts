@@ -131,10 +131,24 @@ export async function POST(req: NextRequest) {
             const accessToken = await getAccessToken(Number(installationId));
 
             // Bounty comment with contributor instructions
-                const commentBody =
-                `✅ **Submission Accepted!**
+            const deadlineDate = new Date(acceptedSubmission.bounty.time);
+            const formattedDeadline = deadlineDate.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZoneName: 'short'
+            });
+
+            const commentBody =
+            `✅ **Submission Accepted!**
 
 This submission has been accepted and the wallet address \`${acceptedSubmission.walletAddress ? acceptedSubmission.walletAddress.slice(0, 3) + "..." + acceptedSubmission.walletAddress.slice(-4) : "N/A"}\` has been stored as the recipient of this bounty.
+
+**⏰ Deadline: ${formattedDeadline}**
+
+⚠️ **Important:** Please push your first commit before the deadline. If no commits are made by the deadline, the maintainer can close this assignment and release the bounty to someone else.
 
 You may continue now.`;
 

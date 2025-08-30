@@ -169,7 +169,37 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
         true
       );
   
-      // Step 3: Check if the on-chain bounty account already exists to prevent crashes
+      // Step 3: Validate maintainer's token account and balance
+      try {
+        // Check if maintainer has a token account for USDC
+        const maintainerTokenAccountInfo = await connection.getAccountInfo(maintainerTokenAccount);
+        if (!maintainerTokenAccountInfo) {
+          toast.error("You don't have a USDC token account. Please acquire some USDC first.");
+          return;
+        }
+
+        // Check maintainer's USDC balance
+        const maintainerBalance = await connection.getTokenAccountBalance(maintainerTokenAccount);
+        const requiredAmount = data.price * 1000000; // Convert to USDC decimals (6 decimals)
+        
+        if (maintainerBalance.value.uiAmount === null || maintainerBalance.value.uiAmount < data.price) {
+          toast.error(`Insufficient USDC balance. You have ${maintainerBalance.value.uiAmount?.toFixed(2) || '0'} USDC, but need ${data.price} USDC for this bounty.`);
+          return;
+        }
+
+        // Additional safety check: ensure we have at least the exact amount needed
+        if (maintainerBalance.value.amount < requiredAmount.toString()) {
+          toast.error(`Insufficient USDC balance. You have ${maintainerBalance.value.uiAmount?.toFixed(2) || '0'} USDC, but need ${data.price} USDC for this bounty.`);
+          return;
+        }
+
+      } catch (error) {
+        console.error("Error checking token account or balance:", error);
+        toast.error("Failed to verify your USDC balance. Please try again.");
+        return;
+      }
+
+      // Step 4: Check if the on-chain bounty account already exists to prevent crashes
       const bountyAccountExists = await checkAccountExists(connection, bountyAccountKp.publicKey);
 
       const [configPda] = PublicKey.findProgramAddressSync(
@@ -211,7 +241,7 @@ export function BountyDialog({ issue,isOpen,onOpenChange,fetchIssues }: BountyDi
         }
       }
 
-      // Step 4: Update bounty record in DB with transaction data
+      // Step 5: Update bounty record in DB with transaction data
       const updatePayload = {
         bountyId,
         pdaEscrow: escrowAuthorityPda.toString(),

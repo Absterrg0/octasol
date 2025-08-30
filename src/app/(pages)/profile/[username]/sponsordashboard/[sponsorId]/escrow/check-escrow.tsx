@@ -22,7 +22,8 @@ import {
   CheckCircle,
   Wallet,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Clock
 } from "lucide-react";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { toast } from "react-toastify";
@@ -43,6 +44,7 @@ type Bounty = {
   price: number;
   skills: string[];
   createdAt: string;
+  time: string;
 };
 
 type Submission = {
@@ -231,6 +233,12 @@ export default function BountyLockedDialog({ issue, onRefetchIssues }: BountyLoc
               </div>
               <div className="text-right text-sm text-slate-400">
                 <div>Created {formatDate(winningSubmission.bounty.createdAt)}</div>
+                <div className="flex items-center gap-1 mt-1">
+                  <Clock className="w-3 h-3 text-orange-400" />
+                  <span className="text-orange-400 font-medium">
+                    Deadline: {formatDate(winningSubmission.bounty.time)}
+                  </span>
+                </div>
                 {winningSubmission.bounty.skills && winningSubmission.bounty.skills.length > 0 && (
                   <div className="flex gap-1 mt-1 flex-wrap justify-end">
                     {winningSubmission.bounty.skills.slice(0, 3).map((skill: string, index: number) => (
@@ -242,6 +250,19 @@ export default function BountyLockedDialog({ issue, onRefetchIssues }: BountyLoc
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Deadline Warning */}
+          <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-orange-400" />
+              <span className="text-sm font-medium text-orange-400">
+                ⚠️ Deadline Reminder
+              </span>
+            </div>
+            <p className="text-xs text-orange-300 mt-1">
+              The contributor must push their first commit before the deadline. If no commits are made by {formatDate(winningSubmission.bounty.time)}, you can close this assignment and reassign the bounty.
+            </p>
           </div>
 
           {/* Submission Details */}

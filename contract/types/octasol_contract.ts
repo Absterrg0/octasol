@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/octasol_contract.json`.
  */
 export type OctasolContract = {
-  "address": "GsYHXAJGQ25hA8MLeVXMuXkUPdiQ76k3QQBuYtmVFShp",
+  "address": "9fEwdooYgtnUje89t6jTtqnfeeJ1e8oNZm6QP67tSksp",
   "metadata": {
     "name": "octasolContract",
     "version": "0.1.0",

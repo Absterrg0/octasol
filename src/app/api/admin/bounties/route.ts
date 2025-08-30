@@ -54,7 +54,6 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    console.log(bounties);
 
     const safe = bigintToString(bounties);
     return NextResponse.json({

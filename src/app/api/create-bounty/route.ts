@@ -94,10 +94,22 @@ export async function PUT(req:NextRequest){
                 const accessToken = await getAccessToken(Number(installationId));
     
                 // Bounty comment with contributor instructions
+                const deadlineDate = new Date(bounty.time);
+                const formattedDeadline = deadlineDate.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    timeZoneName: 'short'
+                });
+
                 const commentBody =
                 `## 🚨 Bounty Opportunity! 💰
 
 A **$${bounty.price}** bounty is up for grabs on this issue, brought to you by **[Octasol.io](https://octasol.io)**.
+
+**⏰ Deadline: ${formattedDeadline}**
 
 **Escrow Transaction:** \`${blockchainTxSignature}\`
 
@@ -112,6 +124,8 @@ You can verify the escrow on [Solana Explorer](https://explorer.solana.com/tx/${
 3. **Share Your Approach:** Briefly outline your proposed solution in the PR description for early feedback from maintainers.
 4. **Share the wallet address:** Share your wallet address in the PR description as Address: <wallet_address>
 5. **Wait for result:** Wait for the maintainer to review your approach. If accepted, you can start to make the changes for the issue and work on the bounty.
+
+⚠️ **Important:** Once assigned, you must push your first commit before the deadline. If no commits are made by the deadline, the maintainer can close this assignment and reassign the bounty to someone else.
 
 ---
 
